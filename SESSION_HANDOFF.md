@@ -37,31 +37,16 @@ every file, not just `.swift`. Placeholders and empty folders removed; rule reco
 
 ## Needs verifying on the Mac
 
-- [x] **Dock icon absence / ⌘-Tab absence.** Confirmed 2026-08-19 — no Dock icon, not in ⌘-Tab.
-      Decision 7 satisfied.
+**Nothing outstanding.** Phases 0 and 1 are both confirmed on the Mac as of 2026-08-19:
 
-**Phase 1 — written, not compiled.** Seven new Swift files plus one edit and one project-file
-change. `git pull` → ⌘R, then:
+- [x] Dock icon and ⌘-Tab absence — neither appears. Decision 7 satisfied.
+- [x] Phase 1 builds at `MACOSX_DEPLOYMENT_TARGET = 26.0`.
+- [x] `.glassEffect` compiles and renders. The Liquid Glass material pipeline works, so Phase 4's
+      floating HUD can rely on it.
+- [x] Settings window: four sidebar rows that stay visible at every window size, title bar showing
+      the pane title and subtitle, window resizes freely.
 
-- [ ] **It builds.** `MACOSX_DEPLOYMENT_TARGET` was raised 14.0 → 26.0 in `project.pbxproj` (a
-      one-value `sed`, no structural edit). If Xcode complains the SDK can't target 26.0, that's
-      the thing to report.
-- [ ] **Settings opens with a sidebar.** Menu bar icon → Settings… (or ⌘,). Expect a ~780×520
-      window: sidebar listing General / Hotkey / Dictionary / History, detail pane on the right
-      with a title, a one-line subtitle, and a card.
-- [ ] **Liquid Glass is actually rendering.** The card in each pane and the "Arrives in Phase N"
-      pill use `.glassEffect(.regular, in:)`. They should look like frosted, light-bending glass —
-      not flat grey boxes. This is the smoke test for the whole material pipeline; Phase 4's
-      recording HUD depends on it. If `.glassEffect` doesn't compile, report the exact error — the
-      API name is the most likely thing to be wrong, since it can't be checked in the container.
-- [ ] **Switching tabs works** and each pane names a different phase (6 / 3 / 7 / 9).
-- [ ] **The old placeholder is gone.** No "Settings arrive in Phase 1." text anywhere.
-
-New files, all uncompiled:
-`Dictdotclick/UI/Settings/` — `SettingsWindow.swift`, `SettingsTab.swift`, `PhasePlaceholder.swift`,
-`GeneralSettingsView.swift`, `HotkeySettingsView.swift`, `DictionarySettingsView.swift`,
-`HistorySettingsView.swift`. Plus `Dictdotclick/App/DictdotclickApp.swift` (rewritten) and
-`Dictdotclick.xcodeproj/project.pbxproj` (deployment target only).
+No uncompiled Swift exists.
 
 ## Gotchas / things to watch for
 
@@ -81,6 +66,18 @@ New files, all uncompiled:
   them. Worth reaching for early when errors reference files that don't exist.
 - **`xcodebuild` from Terminal beats reading Xcode's issue navigator** when reporting a failure back
   to a session — Xcode truncates paths (`DerivedData/D...`), the CLI prints them whole.
+
+- **`git rev-parse --show-toplevel` only works from inside the repo.** Handing it to Philip in a
+  freshly-opened Terminal (which starts at `~`) silently no-ops the whole command block — every git
+  line fails with `not a git repository` and he keeps testing a stale build. Use the absolute path:
+  `cd ~/Documents/Claude/Projects/Dictdotclick/Dictdotclick`.
+- **The repo root contains a folder with the same name.** `Dictdotclick/Dictdotclick/` holds the
+  Swift source; `.xcodeproj` sits in the outer one. One `cd Dictdotclick` too many lands in the
+  source folder, where `git` still works but `open Dictdotclick.xcodeproj` does not.
+- **Never launch the built `.app` directly.** An instance started with `open .../Dictdotclick.app`
+  escapes Xcode's control, so Stop and the Replace prompt don't touch it and the menu bar ends up
+  with two mic icons. Launch with ⌘R only; `killall Dictdotclick` is the reset.
+- **At the Replace/Add prompt, always Replace.** "Add" is the other way to get duplicate icons.
 
 ## Anything to know before continuing
 
