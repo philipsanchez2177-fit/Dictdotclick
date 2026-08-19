@@ -68,3 +68,68 @@ report that tracks optimism.
 
 Zero lines of application code. Seven locked decisions, a phase plan, and a mechanism to keep the
 next twenty sessions honest.
+
+---
+
+## 2026-08-19 — The wall was the tooling, not the code
+
+The plan said Phase 0 would be scaffolding an Xcode project. What actually happened is that the
+project's human hit a wall, and the fix was to remove the wall rather than to coach him over it.
+
+The setup handed to him was a five-step walkthrough: run Xcode's New Project wizard, fill in seven
+fields, add an `Info.plist` key by hand, swap one generated file for another, delete a second, create
+eight groups. Every step is unremarkable to someone who has done it before. To someone who hasn't,
+it's five chances to end up somewhere unrecoverable — and he did. The first sign of trouble was a
+screenshot of a Swift file containing `cd Dictdotclick`, `git pull`, and `open
+Dictdotclick.xcodeproj`, with Xcode complaining it couldn't find `cd` in scope. Terminal commands
+pasted into a code editor. Perfectly reasonable mistake: nobody had said which of the two apps on
+screen was which.
+
+The instinct is to write clearer instructions. The better move was to ask why the instructions
+existed at all. Xcode's wizard produces a `.xcodeproj` — a directory whose central file,
+`project.pbxproj`, is just structured text. It could be authored directly and committed, reducing
+his job to `git pull` and ⌘R forever. The reason nobody does that is that the format historically
+enumerated every source file individually, so it drifted out of sync constantly and a malformed one
+stops Xcode opening the project at all. The project's own `CLAUDE.md` carried a warning to that
+effect.
+
+That warning turned out to be out of date. Xcode 16 added file-system-synchronized groups: the
+project references a *folder* and compiles whatever it finds. The file stops being a manifest that
+must track reality and becomes a small static description of a target. It can be written once,
+validated, and left alone — and future sessions add `.swift` files without touching it. The most
+fragile recurring step in the project disappeared, which is a much better outcome than getting good
+at performing it carefully.
+
+It was written, checked in-container for balanced delimiters, resolving object references, and
+correct target wiring, and committed with the honest caveat that structural validity is not the same
+as Xcode accepting it.
+
+Then the diagnosis got interesting. A command to survey his Mac turned up one clone and one
+`.xcodeproj`, and a test for whether the project file was the committed one or the wizard's reported
+"MINE." That test was wrong — modern Xcode generates synchronized-folder projects too, so the check
+couldn't distinguish them. The real tells were `Assets.xcassets`, a `ContentView.swift`, a branch
+named `main`, and a single commit called "Initial Commit": a local repo Xcode had created, with no
+relationship to the one on GitHub. Two projects that appeared stacked were actually unrelated. The
+correction mattered more than the original answer, because the wrong reading would have led to
+merging two unrelated git histories to no purpose.
+
+The clone succeeded, and the build failed: `Multiple commands produce .../DerivedData/...`,
+alongside nine errors pointing at a `ContentView.swift` that didn't exist in the new project. The
+nine were stale cache from the abandoned project. The first one was a real bug, and it was a
+self-inflicted one. Seven empty folders had been created to give future phases a home, and because
+git cannot store an empty directory, each got a placeholder named `.gitkeep`. Synchronized folders
+sweep up every file, not just Swift ones — so seven identically-named files all resolved to the same
+destination in the app bundle, and the build system refused. The convenience feature that removed
+the fragile step introduced a new failure mode in the same stroke.
+
+The placeholders came out, the empty folders with them, and the rule went into the spec: nothing
+non-source inside the synchronized folder, and no same-named files anywhere under it. `**BUILD
+SUCCEEDED**`, a microphone icon in the menu bar, and a Settings window that opened in front on the
+first try — notable because `SettingsLink` inside an agent app had been flagged as the most likely
+thing to need a workaround, and didn't.
+
+Two things are worth keeping from the evening. The `.gitkeep` diagnosis was a hypothesis pushed
+without proof, labeled as one in the commit message, and confirmed only by the next build; treating
+it as a fix at the time would have been a small lie that happened to come true. And the wizard was
+never the point. It was a step someone had to perform because that was how it had always been done,
+and one look at whether it was still necessary removed it from every future session.

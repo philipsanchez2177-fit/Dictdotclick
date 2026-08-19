@@ -1,87 +1,83 @@
-# SESSION HANDOFF — 2026-08-18-a
+# SESSION HANDOFF — 2026-08-19-a
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.
-
-First session — no prior handoff to archive.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-18-a.md`.
 
 ## What happened this session
 
-Dictdotclick was defined and the repo was set up. **No application code was written**, by design —
-the session went into deciding what to build before building it.
+**Phase 0 shipped and is verified on the Mac.** Dictdotclick builds, launches, and lives in the menu
+bar. First real application milestone.
 
-**The interview.** Six questions, one at a time, each with a recommendation and reasoning. All seven
-resulting decisions are recorded in `BUILD-SPEC.md`. Two answers diverged from the recommendation
-and both mattered:
+**The Xcode wizard was removed from the workflow entirely.** Philip couldn't get through the
+five-step walkthrough in the old `scaffold/HOW-TO-USE.md` — the first symptom was Terminal commands
+(`cd`, `git pull`, `open`) pasted into a Swift file, with Xcode reporting "Cannot find 'cd' in
+scope." Rather than rewriting the instructions, `Dictdotclick.xcodeproj` was authored here and
+committed. His workflow is now permanently `git pull` → ⌘R (`RUN-IT.md`).
 
-- **Live text preview** was added to the recording pill. This moved streaming transcription from a
-  nice-to-have into its own phase (Phase 8), sequenced last so a failure there leaves a working app
-  behind it.
-- **Spoken shorthand** was requested alongside vocabulary hints — saying "my home address" should
-  type the real address. These are two different mechanisms at opposite ends of the pipeline
-  (prompt-before vs. replace-after), with a dependency: a snippet trigger must also be a vocabulary
-  hint, or it can't be heard correctly enough to replace. Documented in `BUILD-SPEC.md`.
+This is safe because of **file-system-synchronized groups** (Xcode 16+): the project references the
+`Dictdotclick/` folder instead of enumerating files. `CLAUDE.md`'s warning about hand-edited
+`project.pbxproj` predates that feature. Future phases add `.swift` files with **no project-file
+edits at all** — the most fragile recurring step in this project is gone.
 
-The hotkey rule also landed tighter than proposed: **modifier combos and function-row keys only**,
-no bare characters. Function keys sidestep the "you can no longer type K" problem entirely, without
-needing warning UI.
+**A diagnostic mistake worth remembering.** A check for whether the `.xcodeproj` on his Mac was the
+committed one or the wizard's grepped for `PBXFileSystemSynchronizedRootGroup` and reported "MINE."
+That test was invalid — modern Xcode generates synchronized-folder projects too. The real evidence
+was `Assets.xcassets`, `ContentView.swift`, branch `main`, and one commit named "Initial Commit": a
+local repo Xcode had made, unrelated to GitHub. Resolved by renaming his wizard project to
+`Dictdotclick-wizard-backup` and cloning fresh.
 
-**The environment constraint.** Claude sessions run on Linux; a SwiftUI app requires Xcode on a Mac.
-Code gets written here and can only be proven there. The failure mode — committing Swift, reporting
-success, discovering a pile of errors ten phases later — is the thing the rest of this session was
-built to prevent.
+**One real bug, found and fixed.** First build failed with `Multiple commands produce
+.../DerivedData/...`. Cause: seven `.gitkeep` placeholders (one per empty phase folder) — identical
+filenames all resolving to the same destination in the app bundle. Synchronized folders sweep up
+every file, not just `.swift`. Placeholders and empty folders removed; rule recorded in
+`BUILD-SPEC.md`. This was pushed as an explicit hypothesis and confirmed only by the next build.
 
-**`/ddcc` skill built.** `.claude/skills/ddcc/SKILL.md`, modeled on the ORBIT `/calibrate` ritual,
-with three project-specific adaptations: it never reports Swift as verified, it maintains a
-carried-forward Mac-verification checklist, and it bootstraps the project docs on first run. Lives
-inside the repo rather than in the container's home folder so it survives container reclamation and
-works anywhere the repo is cloned.
-
-**Docs bootstrapped this run:** `BUILD-SPEC.md`, `DEFERRED.md`, `CLAUDE.md`, `docs/BUILD-JOURNAL.md`
-(first entry added — the session earned one on the decision-making and the verification-honesty
-mechanism).
+**`/ddcc` ran for real for the first time**, which cleared its own verification items.
 
 ## Needs verifying on the Mac
 
-- [x] **`/ddcc` loads as a skill.** Confirmed 2026-08-19 — it appears in the session's skill list, so
-      the frontmatter is valid. (It was undiscoverable in the session that created it because skills
-      are loaded at session start; that was expected.)
-- [ ] **`/ddcc` guardrails are untested.** The repo check (refuse outside Dictdotclick) and the
-      branch check (refuse on `main`) are written but have never executed. *Confirm on the first
-      real run.*
+- [ ] **Dock icon absence / ⌘-Tab absence.** Not explicitly checked. `LSUIElement` is clearly active
+      (no window at launch, app runs with only a menu bar icon), so this is expected to pass. *Press
+      ⌘-Tab and confirm Dictdotclick is not listed; check the Dock.* Low risk, carried forward
+      because it was never confirmed out loud.
 
-**Phase 0 — written in the container, never compiled:**
-
-- [x] **The Xcode project opens and builds.** Confirmed 2026-08-19 — `xcodebuild` reported
-      `** BUILD SUCCEEDED **` and the app launched with a mic icon in the menu bar. The
-      hand-authored `project.pbxproj` and synchronized folders both work.
-- [x] **Menu and Settings window.** Confirmed 2026-08-19 — the mic icon opens its menu and
-      Settings… brings up the placeholder window in front. `SettingsLink` works in an `LSUIElement`
-      app with no `NSApp.activate` workaround, which had been flagged as the likely failure.
-- [ ] **Dock icon absence / ⌘-Tab absence.** Not explicitly checked. `LSUIElement` is clearly
-      active (no window at launch), so this is expected to pass — just unconfirmed.
-- [x] **Synchronized folders sweep up non-source files.** Confirmed the hard way 2026-08-19: seven
-      `.gitkeep` placeholders broke the build with `Multiple commands produce`. Placeholders removed;
-      rule recorded in `BUILD-SPEC.md`.
-- [x] **Signing.** Confirmed 2026-08-19 — "Sign to Run Locally" worked with no Apple ID or team
-      configuration needed.
+Everything else on the previous list is confirmed. No uncompiled Swift exists — `DictdotclickApp.swift`
+is the only source file and it builds.
 
 ## Gotchas / things to watch for
 
-- **`/calibrate` will refuse in this repo, correctly.** It's hard-scoped to ORBIT — it checks for an
-  ORBIT-referencing `CLAUDE.md` and runs `npm run build`. Use `/ddcc` here.
-- **The `.gitignore` excludes `Models/`.** Whisper model files are 460 MB–1.5 GB and must never be
-  committed. If a model ever shows up in `git status`, something is wrong with the download path.
+- **Nothing non-source goes inside `Dictdotclick/`.** Synchronized folders compile/copy everything
+  in there. No same-named files at any depth (that's what `.gitkeep` × 7 did), and no notes,
+  fixtures, or scratch files. Those live outside the folder.
+- **Don't pre-create empty phase folders.** Create a folder when its first real file exists. The
+  `App/`, `UI/`, `Hotkey/`… structure in `BUILD-SPEC.md` is a naming convention, not a directory
+  tree to lay out in advance.
+- **`Dictdotclick-wizard-backup` still exists on Philip's Mac** at
+  `~/Documents/Claude/Projects/Dictdotclick/`. Harmless, never pushed anywhere, deletable whenever.
+  Worth knowing so a future session doesn't mistake it for the real project.
+- **`ContentView.swift` should never appear in this repo.** If it does, someone ran the wizard
+  again. There is no `ContentView` in this app — `DictdotclickApp.swift` is the entry point.
+- **Stale Xcode errors survive a project switch.** Nine `ContentView.swift` errors persisted after
+  cloning the new project and were pure noise. `rm -rf ~/Library/Developer/Xcode/DerivedData` clears
+  them. Worth reaching for early when errors reference files that don't exist.
+- **`xcodebuild` from Terminal beats reading Xcode's issue navigator** when reporting a failure back
+  to a session — Xcode truncates paths (`DerivedData/D...`), the CLI prints them whole.
 
 ## Anything to know before continuing
 
-- **Branch:** `claude/init-ayj2tg`, pushed and tracking `origin`. `main` untouched. No open PRs.
-- **Working tree:** clean. Nothing uncommitted, nothing left half-finished.
-- **Next step:** install Xcode, then `git pull` and ⌘R (`RUN-IT.md`). Phase 0 finishes the moment a
-  mic icon appears in the menu bar.
-- **The `scaffold/` folder is gone.** Its wizard walkthrough was replaced by a committed Xcode
-  project, so there is no project to create by hand any more — see `RUN-IT.md`.
-- **Both blocking questions are answered** (2026-08-19): macOS 26 Tahoe, so full Liquid Glass and no
-  fallback path to build; Xcode not yet installed, and that download blocks everything.
+- **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
+- **Working tree:** clean.
+- **Next step: Phase 1** — the real Settings window. Liquid Glass, sidebar tabs (General / Hotkey /
+  Dictionary / History), replacing `SettingsPlaceholderView`. macOS 26 confirmed, so no
+  `.ultraThinMaterial` fallback needs building.
+- **`DEFERRED.md` was updated this run**, contrary to this skill's usual check-only rule for that
+  file: it still claimed Xcode was downloading and the project unbuilt, both false as of tonight.
+  Corrected rather than flagged, since leaving known-wrong docs is the drift the handoff exists to
+  prevent.
+- **Remaining open questions** (in `DEFERRED.md`): preferred default hotkey, needed by Phase 3.
+- **Deployment target is macOS 14.0 and Swift 5**, chosen to maximize first-build success. Phase 1
+  may want to raise the target to 26.0 for Liquid Glass rather than gating with
+  `#available(macOS 26, *)` — a real decision to make, not an oversight.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.
