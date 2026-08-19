@@ -25,7 +25,7 @@ struct DictdotclickApp: App {
         Window("Dictdotclick Settings", id: SettingsWindow.windowID) {
             SettingsWindow()
         }
-        .defaultSize(width: 780, height: 520)
+        .defaultSize(width: 820, height: 560)
         .windowResizability(.contentMinSize)
         // Scenes normally open when the app launches. This app must launch to
         // nothing but a menu bar icon, so this one stays closed until asked
