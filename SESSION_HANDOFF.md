@@ -52,20 +52,15 @@ mechanism).
 
 **Phase 0 — written in the container, never compiled:**
 
-- [ ] **The Xcode project opens.** *`open Dictdotclick.xcodeproj`. Success: it opens with a
-      `Dictdotclick` folder in the left sidebar and no red error banner. This is the hand-authored
-      `project.pbxproj` — if Xcode refuses to open it, that file is the culprit and its error text
-      is the fix.*
-- [ ] **The app builds and runs (⌘R).** *Success: a mic icon in the menu bar, no Dock icon, no
-      window. Menu opens with Settings… and Quit. Settings… opens a placeholder window. ⌘-Tab does
-      not list the app.* Full steps in `RUN-IT.md`.
+- [x] **The Xcode project opens and builds.** Confirmed 2026-08-19 — `xcodebuild` reported
+      `** BUILD SUCCEEDED **` and the app launched with a mic icon in the menu bar. The
+      hand-authored `project.pbxproj` and synchronized folders both work.
+- [ ] **Menu behavior.** *Click the mic icon: Settings… and Quit should appear. Settings… should
+      open a placeholder window. ⌘-Tab should not list Dictdotclick.* Build and launch are proven;
+      these four interactions are not.
 - [x] **Synchronized folders sweep up non-source files.** Confirmed the hard way 2026-08-19: seven
       `.gitkeep` placeholders broke the build with `Multiple commands produce`. Placeholders removed;
       rule recorded in `BUILD-SPEC.md`.
-- [ ] **Synchronized folders work as expected.** *The project references the `Dictdotclick/` folder
-      rather than listing files. Confirm `DictdotclickApp.swift` appears in the sidebar without
-      anyone adding it. If it doesn't, the Xcode version predates the feature and the project needs
-      regenerating a different way.*
 - [ ] **`SettingsLink` works in an agent app.** Menu-bar-only apps (`LSUIElement`) sometimes need an
       explicit `NSApp.activate` before a window will come to the front. *If Settings… opens nothing
       or opens it behind other apps, that's the cause — report it and it gets fixed next session.*
