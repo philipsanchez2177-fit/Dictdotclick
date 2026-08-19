@@ -59,6 +59,9 @@ mechanism).
 - [ ] **The app builds and runs (⌘R).** *Success: a mic icon in the menu bar, no Dock icon, no
       window. Menu opens with Settings… and Quit. Settings… opens a placeholder window. ⌘-Tab does
       not list the app.* Full steps in `RUN-IT.md`.
+- [x] **Synchronized folders sweep up non-source files.** Confirmed the hard way 2026-08-19: seven
+      `.gitkeep` placeholders broke the build with `Multiple commands produce`. Placeholders removed;
+      rule recorded in `BUILD-SPEC.md`.
 - [ ] **Synchronized folders work as expected.** *The project references the `Dictdotclick/` folder
       rather than listing files. Confirm `DictdotclickApp.swift` appears in the sidebar without
       anyone adding it. If it doesn't, the Xcode version predates the feature and the project needs
