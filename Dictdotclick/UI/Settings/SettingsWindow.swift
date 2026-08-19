@@ -50,6 +50,14 @@ struct SettingsWindow: View {
                 .navigationTitle(tab.title)
                 .navigationSubtitle(tab.subtitle)
         }
+        // The window has no natural size of its own — its content is a
+        // sidebar and a centred card, neither of which implies a shape. Left
+        // unconstrained, macOS picks something arbitrary. `ideal` sets the
+        // size the window opens at; `min` sets how far it can be dragged in.
+        .frame(
+            minWidth: 760, idealWidth: 820, maxWidth: .infinity,
+            minHeight: 480, idealHeight: 560, maxHeight: .infinity
+        )
     }
 }
 
