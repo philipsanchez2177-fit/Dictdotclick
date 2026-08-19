@@ -1,98 +1,86 @@
-# SESSION HANDOFF — 2026-08-19-a
+# SESSION HANDOFF — 2026-08-19-b
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.
-Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-18-a.md`.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-19-a.md`.
 
 ## What happened this session
 
-**Phase 0 shipped and is verified on the Mac.** Dictdotclick builds, launches, and lives in the menu
-bar. First real application milestone.
+**Phase 1 shipped and is verified on the Mac.** The app has a real Settings window: fixed sidebar
+(General / Hotkey / Dictionary / History), detail pane with the tab's title and subtitle in the
+window title bar, and a Liquid Glass card per pane naming the phase that fills it in. Skeleton only
+— no working controls, by design.
 
-**The Xcode wizard was removed from the workflow entirely.** Philip couldn't get through the
-five-step walkthrough in the old `scaffold/HOW-TO-USE.md` — the first symptom was Terminal commands
-(`cd`, `git pull`, `open`) pasted into a Swift file, with Xcode reporting "Cannot find 'cd' in
-scope." Rather than rewriting the instructions, `Dictdotclick.xcodeproj` was authored here and
-committed. His workflow is now permanently `git pull` → ⌘R (`RUN-IT.md`).
+Seven new files in `Dictdotclick/UI/Settings/`, picked up automatically by the synchronized folder
+with **no `project.pbxproj` edits**. That promise from Phase 0 held.
 
-This is safe because of **file-system-synchronized groups** (Xcode 16+): the project references the
-`Dictdotclick/` folder instead of enumerating files. `CLAUDE.md`'s warning about hand-edited
-`project.pbxproj` predates that feature. Future phases add `.swift` files with **no project-file
-edits at all** — the most fragile recurring step in this project is gone.
+**Two unknowns cleared, both of which Phase 4 depended on.** `.glassEffect` compiles and renders, so
+the Liquid Glass pipeline works and the floating recording HUD can rely on it. And the deployment
+target was raised **14.0 → 26.0**, which builds clean. That was a real decision, not a detail:
+Liquid Glass is macOS 26-only, and the alternative was gating every use behind `#available` and
+maintaining a second visual path for users who don't exist. Revisit only if the app ships beyond
+Philip's Mac.
 
-**A diagnostic mistake worth remembering.** A check for whether the `.xcodeproj` on his Mac was the
-committed one or the wizard's grepped for `PBXFileSystemSynchronizedRootGroup` and reported "MINE."
-That test was invalid — modern Xcode generates synchronized-folder projects too. The real evidence
-was `Assets.xcassets`, `ContentView.swift`, branch `main`, and one commit named "Initial Commit": a
-local repo Xcode had made, unrelated to GitHub. Resolved by renaming his wizard project to
-`Dictdotclick-wizard-backup` and cloning fresh.
+**Four rebuilds, one cause.** `NavigationSplitView` broke the sidebar three separate times — empty
+inside the `Settings` scene, then empty again on resize after moving to a `Window` scene. It adapts
+its columns to available space on its own, which is right for a navigation hierarchy and wrong for
+four fixed rows. The first diagnosis blamed the `Settings` scene and *appeared* to work, which is
+why it survived two more rounds. The window is now a plain `HStack` with a fixed-width
+`List(.sidebar)` — no negotiation, no collapse, identical layout at every size.
 
-**One real bug, found and fixed.** First build failed with `Multiple commands produce
-.../DerivedData/...`. Cause: seven `.gitkeep` placeholders (one per empty phase folder) — identical
-filenames all resolving to the same destination in the app bundle. Synchronized folders sweep up
-every file, not just `.swift`. Placeholders and empty folders removed; rule recorded in
-`BUILD-SPEC.md`. This was pushed as an explicit hypothesis and confirmed only by the next build.
+Five layout rules from this went into `BUILD-SPEC.md`, since Phase 2 builds another window.
 
-**`/ddcc` ran for real for the first time**, which cleared its own verification items.
+**Philip cleared Xcode's "Update to recommended settings" warning** and pushed the result (`63a016e`)
+— ~16 extra `CLANG_WARN_*` flags, dead-code stripping, and `LastUpgradeCheck` bumped to Xcode 26.
+Reviewed here: nothing behavioural. Xcode also reformatted one block of `project.pbxproj`, which
+incidentally confirms the hand-authored file parses cleanly.
+
+**The `Dictdotclick-wizard-backup` folder was deleted** from Philip's Mac. Gone from the gotchas.
 
 ## Needs verifying on the Mac
 
-**Nothing outstanding.** Phases 0 and 1 are both confirmed on the Mac as of 2026-08-19:
+**Nothing outstanding.** Phases 0 and 1 are both confirmed as of 2026-08-19:
 
-- [x] Dock icon and ⌘-Tab absence — neither appears. Decision 7 satisfied.
-- [x] Phase 1 builds at `MACOSX_DEPLOYMENT_TARGET = 26.0`.
-- [x] `.glassEffect` compiles and renders. The Liquid Glass material pipeline works, so Phase 4's
-      floating HUD can rely on it.
-- [x] Settings window: four sidebar rows that stay visible at every window size, title bar showing
-      the pane title and subtitle, window resizes freely.
+- [x] No Dock icon, not in ⌘-Tab. Decision 7 satisfied.
+- [x] Builds at `MACOSX_DEPLOYMENT_TARGET = 26.0`.
+- [x] `.glassEffect` compiles and renders.
+- [x] Settings window: four sidebar rows that stay visible at every size, title bar showing pane
+      title and subtitle, window resizes freely down to ~700×440.
 
-No uncompiled Swift exists.
+No uncompiled Swift exists in the repo.
 
 ## Gotchas / things to watch for
 
-- **Nothing non-source goes inside `Dictdotclick/`.** Synchronized folders compile/copy everything
-  in there. No same-named files at any depth (that's what `.gitkeep` × 7 did), and no notes,
-  fixtures, or scratch files. Those live outside the folder.
-- **Don't pre-create empty phase folders.** Create a folder when its first real file exists. The
-  `App/`, `UI/`, `Hotkey/`… structure in `BUILD-SPEC.md` is a naming convention, not a directory
-  tree to lay out in advance.
-- **`Dictdotclick-wizard-backup` still exists on Philip's Mac** at
-  `~/Documents/Claude/Projects/Dictdotclick/`. Harmless, never pushed anywhere, deletable whenever.
-  Worth knowing so a future session doesn't mistake it for the real project.
-- **`ContentView.swift` should never appear in this repo.** If it does, someone ran the wizard
-  again. There is no `ContentView` in this app — `DictdotclickApp.swift` is the entry point.
-- **Stale Xcode errors survive a project switch.** Nine `ContentView.swift` errors persisted after
-  cloning the new project and were pure noise. `rm -rf ~/Library/Developer/Xcode/DerivedData` clears
-  them. Worth reaching for early when errors reference files that don't exist.
-- **`xcodebuild` from Terminal beats reading Xcode's issue navigator** when reporting a failure back
-  to a session — Xcode truncates paths (`DerivedData/D...`), the CLI prints them whole.
-
-- **`git rev-parse --show-toplevel` only works from inside the repo.** Handing it to Philip in a
-  freshly-opened Terminal (which starts at `~`) silently no-ops the whole command block — every git
-  line fails with `not a git repository` and he keeps testing a stale build. Use the absolute path:
+- **Don't use `NavigationSplitView` for fixed panes.** It cost three rebuilds. Reach for it only
+  where the sidebar is genuinely a navigation stack. Full rule set in `BUILD-SPEC.md`.
+- **A change that makes a symptom disappear is not proof of the cause.** Moving off the `Settings`
+  scene produced a working sidebar and hid the real bug for two more rounds. Only the recurrence
+  told them apart.
+- **Never hand Philip `git rev-parse --show-toplevel`.** It only works from inside the repo, so in a
+  freshly-opened Terminal (which starts at `~`) it fails and silently no-ops every git command
+  chained behind it — including the `git pull`. Two rounds were lost testing a build that predated
+  the fixes. Use the absolute path:
   `cd ~/Documents/Claude/Projects/Dictdotclick/Dictdotclick`.
 - **The repo root contains a folder with the same name.** `Dictdotclick/Dictdotclick/` holds the
   Swift source; `.xcodeproj` sits in the outer one. One `cd Dictdotclick` too many lands in the
-  source folder, where `git` still works but `open Dictdotclick.xcodeproj` does not.
+  source folder, where git still works but `open Dictdotclick.xcodeproj` does not.
 - **Never launch the built `.app` directly.** An instance started with `open .../Dictdotclick.app`
-  escapes Xcode's control, so Stop and the Replace prompt don't touch it and the menu bar ends up
-  with two mic icons. Launch with ⌘R only; `killall Dictdotclick` is the reset.
-- **At the Replace/Add prompt, always Replace.** "Add" is the other way to get duplicate icons.
+  escapes Xcode's control — Stop and the Replace prompt don't touch it — and the menu bar ends up
+  with two mic icons. Launch with ⌘R only. `killall Dictdotclick` is the reset.
+- **At Xcode's Replace/Add prompt, always Replace.** "Add" is the other route to duplicate icons.
+- **When a fix "doesn't work," confirm it's actually on the Mac before re-diagnosing.**
 
 ## Anything to know before continuing
 
 - **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
-- **Working tree:** clean.
-- **Next step: Phase 1** — the real Settings window. Liquid Glass, sidebar tabs (General / Hotkey /
-  Dictionary / History), replacing `SettingsPlaceholderView`. macOS 26 confirmed, so no
-  `.ultraThinMaterial` fallback needs building.
-- **`DEFERRED.md` was updated this run**, contrary to this skill's usual check-only rule for that
-  file: it still claimed Xcode was downloading and the project unbuilt, both false as of tonight.
-  Corrected rather than flagged, since leaving known-wrong docs is the drift the handoff exists to
-  prevent.
-- **Remaining open questions** (in `DEFERRED.md`): preferred default hotkey, needed by Phase 3.
-- **Deployment target is macOS 14.0 and Swift 5**, chosen to maximize first-build success. Phase 1
-  may want to raise the target to 26.0 for Liquid Glass rather than gating with
-  `#available(macOS 26, *)` — a real decision to make, not an oversight.
+- **Working tree:** clean. Nothing left uncommitted.
+- **Next step: Phase 2** — the permissions walkthrough (Microphone + Accessibility) with live status
+  and a System Settings deep link. Sequenced early because permissions are where users of this kind
+  of app give up. It builds a second window, so the `BUILD-SPEC.md` layout rules apply directly.
+- **`BUILD-SPEC.md` was updated this session** — Phase 1 marked done, deployment target row
+  rewritten, and a new "Settings window layout" section added. It is current, not stale.
+- **`DEFERRED.md` was not changed** — nothing this session touched its territory. Still current.
+- **Remaining open question:** preferred default hotkey, needed by Phase 3.
+- **`SWIFT_VERSION` is still 5.0.** Untouched and not yet worth revisiting.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.

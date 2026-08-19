@@ -133,3 +133,53 @@ without proof, labeled as one in the commit message, and confirmed only by the n
 it as a fix at the time would have been a small lie that happened to come true. And the wizard was
 never the point. It was a step someone had to perform because that was how it had always been done,
 and one look at whether it was still necessary removed it from every future session.
+
+---
+
+## 2026-08-19 — The same bug three times
+
+Phase 1 was the first real interface: a Settings window with a sidebar — General, Hotkey,
+Dictionary, History — and Liquid Glass, macOS 26's light-bending material. The window is a skeleton
+by design. Each pane holds a card naming the phase that will fill it in. The point of the phase was
+not the controls; it was to prove the material renders at all, because Phase 4's floating recording
+pill depends on it and finding out then would have been expensive.
+
+It also forced a decision that had been deferred since Phase 0. Liquid Glass exists only on macOS
+26, and the project targeted macOS 14 to maximise the odds of a first build succeeding. The
+alternative to raising the target was gating every glass call behind an availability check and
+maintaining a second, non-glass version of every screen — real work whose only beneficiaries would
+be users who do not exist. The target went to 26.0. That is a decision to revisit if the app ever
+ships beyond one Mac, and it is written down as such rather than left implicit in a build setting.
+
+The code was written, pushed, and built on the Mac. It compiled. `.glassEffect` rendered. And the
+sidebar was empty — four rows that simply were not there, with the split view's collapse button
+sitting above them as proof the container existed.
+
+The first diagnosis blamed SwiftUI's `Settings` scene, the built-in window that ⌘, opens, for not
+giving a two-column layout room to lay out. The window moved to an ordinary `Window` scene the app
+controls outright. The rows appeared. Two more rounds went to window sizing — a size constraint
+dropped during the rewrite, then an infinite maximum that seemed to be feeding the resize logic a
+minimum. Then the rows vanished again on resize, and the pattern finally became legible.
+
+`NavigationSplitView` was the cause every time. It is built for navigation hierarchies, and it
+decides on its own when to collapse, hide, and restore its columns based on available space —
+correct for a drill-down, wrong for four fixed rows that must always be visible. The `Settings`
+scene had been a bystander. The window is now a plain horizontal stack with a fixed-width list:
+nothing negotiates, nothing collapses, the layout is identical at every size. What made this worth
+recording is not the fix but the misattribution. The first diagnosis produced a working sidebar,
+which is exactly why it survived — a change that makes the symptom go away is nearly indistinguishable
+from a change that addresses the cause, and only the recurrence told them apart. The five layout
+rules the phase produced went into the spec, because Phase 2 builds another window and would
+otherwise have paid for them again.
+
+The other lesson had nothing to do with Swift. A block of terminal commands handed over for pasting
+began with `cd "$(git rev-parse --show-toplevel)"` — a command that finds the repository root, and
+which only works when run from somewhere inside the repository. Pasted into a freshly opened
+terminal, which starts in the home folder, it failed, and so did every git command chained behind
+it. The pull never happened. Two rounds of "the fix didn't work" followed, spent testing a build
+that predated the fixes entirely. The clever command was clever in a context that did not hold, and
+an absolute path would have been correct in every context. When someone reports that a fix did not
+work, the first question is whether they have the fix.
+
+Phases 0 and 1 are verified on the Mac. Liquid Glass renders, the macOS 26 target builds clean, and
+the app still launches to nothing but a microphone icon in the menu bar.
