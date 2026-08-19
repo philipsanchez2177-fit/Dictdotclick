@@ -50,18 +50,24 @@ mechanism).
       branch check (refuse on `main`) are written but have never executed. *Confirm on the first
       real run.*
 
-**Phase 0, added 2026-08-19 — written in the container, never compiled:**
+**Phase 0 — written in the container, never compiled:**
 
-- [ ] **Create the Xcode project.** Follow `scaffold/HOW-TO-USE.md` end to end — wizard settings,
-      the `LSUIElement` key, dropping in `DictdotclickApp.swift`, deleting `ContentView.swift`.
-      *Blocked on the Xcode download.*
-- [ ] **`scaffold/DictdotclickApp.swift` compiles and runs.** *Success: a mic icon in the menu bar,
-      no Dock icon, no window. Menu opens with Settings… and Quit. Settings… opens a placeholder
-      window. ⌘-Tab does not list the app.*
+- [ ] **The Xcode project opens.** *`open Dictdotclick.xcodeproj`. Success: it opens with a
+      `Dictdotclick` folder in the left sidebar and no red error banner. This is the hand-authored
+      `project.pbxproj` — if Xcode refuses to open it, that file is the culprit and its error text
+      is the fix.*
+- [ ] **The app builds and runs (⌘R).** *Success: a mic icon in the menu bar, no Dock icon, no
+      window. Menu opens with Settings… and Quit. Settings… opens a placeholder window. ⌘-Tab does
+      not list the app.* Full steps in `RUN-IT.md`.
+- [ ] **Synchronized folders work as expected.** *The project references the `Dictdotclick/` folder
+      rather than listing files. Confirm `DictdotclickApp.swift` appears in the sidebar without
+      anyone adding it. If it doesn't, the Xcode version predates the feature and the project needs
+      regenerating a different way.*
 - [ ] **`SettingsLink` works in an agent app.** Menu-bar-only apps (`LSUIElement`) sometimes need an
       explicit `NSApp.activate` before a window will come to the front. *If Settings… opens nothing
       or opens it behind other apps, that's the cause — report it and it gets fixed next session.*
-- [ ] **Delete `scaffold/` once its contents are in the project.**
+- [ ] **Signing.** *If Xcode says a development team is required, set Team to your personal Apple ID
+      under Signing & Capabilities. Free. Noted here because it's the most common first-run stop.*
 
 ## Gotchas / things to watch for
 
@@ -74,8 +80,10 @@ mechanism).
 
 - **Branch:** `claude/init-ayj2tg`, pushed and tracking `origin`. `main` untouched. No open PRs.
 - **Working tree:** clean. Nothing uncommitted, nothing left half-finished.
-- **Next step:** install Xcode, then work `scaffold/HOW-TO-USE.md`. Phase 0 finishes the moment a
+- **Next step:** install Xcode, then `git pull` and ⌘R (`RUN-IT.md`). Phase 0 finishes the moment a
   mic icon appears in the menu bar.
+- **The `scaffold/` folder is gone.** Its wizard walkthrough was replaced by a committed Xcode
+  project, so there is no project to create by hand any more — see `RUN-IT.md`.
 - **Both blocking questions are answered** (2026-08-19): macOS 26 Tahoe, so full Liquid Glass and no
   fallback path to build; Xcode not yet installed, and that download blocks everything.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep

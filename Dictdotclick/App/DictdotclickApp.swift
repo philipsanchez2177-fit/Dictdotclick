@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import AppKit  // for NSApplication.shared.terminate
 
 @main
 struct DictdotclickApp: App {

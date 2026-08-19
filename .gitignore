@@ -5,3 +5,8 @@ build/
 DerivedData/
 *.bin
 Models/
+
+# Xcode local state
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist

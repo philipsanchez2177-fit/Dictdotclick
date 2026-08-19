@@ -11,6 +11,7 @@ Last updated: 2026-08-19
 
 | Question | Why it matters | Needed by |
 |---|---|---|
+| Does the hand-authored Xcode project open and build? | Nothing has compiled yet. If it fails, the error text is the fix — paste it into a session. | Phase 0 |
 | Apple Developer account? | Not needed to run the app locally on his own Mac (free signing works). Only needed to distribute it to anyone else. | Only if sharing |
 | Preferred default hotkey? | Ships as the out-of-box default; user-changeable in Settings. | Phase 3 |
 
@@ -19,7 +20,7 @@ Last updated: 2026-08-19
 | Question | Answer | Date |
 |---|---|---|
 | What macOS version is on Philip's Mac? | **macOS 26 (Tahoe)** — full Liquid Glass available, no fallback path needed. | 2026-08-19 |
-| Is Xcode installed? | **Not yet** — downloading from the Mac App Store. Blocks all building and running until done. | 2026-08-19 |
+| Is Xcode installed? | **Downloading** as of 2026-08-19. Blocks the first build until done. | 2026-08-19 |
 
 ---
 
