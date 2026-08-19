@@ -37,13 +37,31 @@ every file, not just `.swift`. Placeholders and empty folders removed; rule reco
 
 ## Needs verifying on the Mac
 
-- [ ] **Dock icon absence / ⌘-Tab absence.** Not explicitly checked. `LSUIElement` is clearly active
-      (no window at launch, app runs with only a menu bar icon), so this is expected to pass. *Press
-      ⌘-Tab and confirm Dictdotclick is not listed; check the Dock.* Low risk, carried forward
-      because it was never confirmed out loud.
+- [x] **Dock icon absence / ⌘-Tab absence.** Confirmed 2026-08-19 — no Dock icon, not in ⌘-Tab.
+      Decision 7 satisfied.
 
-Everything else on the previous list is confirmed. No uncompiled Swift exists — `DictdotclickApp.swift`
-is the only source file and it builds.
+**Phase 1 — written, not compiled.** Seven new Swift files plus one edit and one project-file
+change. `git pull` → ⌘R, then:
+
+- [ ] **It builds.** `MACOSX_DEPLOYMENT_TARGET` was raised 14.0 → 26.0 in `project.pbxproj` (a
+      one-value `sed`, no structural edit). If Xcode complains the SDK can't target 26.0, that's
+      the thing to report.
+- [ ] **Settings opens with a sidebar.** Menu bar icon → Settings… (or ⌘,). Expect a ~780×520
+      window: sidebar listing General / Hotkey / Dictionary / History, detail pane on the right
+      with a title, a one-line subtitle, and a card.
+- [ ] **Liquid Glass is actually rendering.** The card in each pane and the "Arrives in Phase N"
+      pill use `.glassEffect(.regular, in:)`. They should look like frosted, light-bending glass —
+      not flat grey boxes. This is the smoke test for the whole material pipeline; Phase 4's
+      recording HUD depends on it. If `.glassEffect` doesn't compile, report the exact error — the
+      API name is the most likely thing to be wrong, since it can't be checked in the container.
+- [ ] **Switching tabs works** and each pane names a different phase (6 / 3 / 7 / 9).
+- [ ] **The old placeholder is gone.** No "Settings arrive in Phase 1." text anywhere.
+
+New files, all uncompiled:
+`Dictdotclick/UI/Settings/` — `SettingsWindow.swift`, `SettingsTab.swift`, `PhasePlaceholder.swift`,
+`GeneralSettingsView.swift`, `HotkeySettingsView.swift`, `DictionarySettingsView.swift`,
+`HistorySettingsView.swift`. Plus `Dictdotclick/App/DictdotclickApp.swift` (rewritten) and
+`Dictdotclick.xcodeproj/project.pbxproj` (deployment target only).
 
 ## Gotchas / things to watch for
 

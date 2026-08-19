@@ -2,9 +2,11 @@
 //  DictdotclickApp.swift
 //  Dictdotclick
 //
-//  Phase 0 — menu-bar-only app shell.
-//  The app has no windows at launch: it lives entirely in the menu bar
-//  (BUILD-SPEC decision 7). Everything else gets built behind this icon.
+//  Menu-bar-only app shell. The app has no windows at launch: it lives
+//  entirely in the menu bar (BUILD-SPEC decision 7).
+//
+//  Phase 1 replaced the Settings placeholder with the real sidebar-tabbed
+//  window in UI/Settings/.
 //
 
 import SwiftUI
@@ -17,7 +19,8 @@ struct DictdotclickApp: App {
         // gives a plain dropdown; later phases may switch to `.window` for
         // richer content.
         MenuBarExtra("Dictdotclick", systemImage: "mic.fill") {
-            // Opens the Settings scene below. Empty until Phase 1.
+            // SettingsLink opens the Settings scene below. It is the only
+            // supported way to open that scene from a menu.
             SettingsLink {
                 Text("Settings…")
             }
@@ -32,27 +35,8 @@ struct DictdotclickApp: App {
         }
         .menuBarExtraStyle(.menu)
 
-        // Declared now so the Settings… item has somewhere to go.
-        // Phase 1 replaces the placeholder with the real sidebar-tabbed,
-        // Liquid Glass settings window.
         Settings {
-            SettingsPlaceholderView()
+            SettingsWindow()
         }
-    }
-}
-
-private struct SettingsPlaceholderView: View {
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "mic.fill")
-                .font(.largeTitle)
-            Text("Dictdotclick")
-                .font(.headline)
-            Text("Settings arrive in Phase 1.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .padding(40)
-        .frame(width: 420, height: 220)
     }
 }
