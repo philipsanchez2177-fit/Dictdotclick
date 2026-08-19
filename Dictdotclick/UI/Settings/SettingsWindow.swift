@@ -2,19 +2,18 @@
 //  SettingsWindow.swift
 //  Dictdotclick
 //
-//  Phase 1 — the Settings window: sidebar on the left, detail pane on the
-//  right. Skeleton only; each pane's controls arrive in its own phase.
+//  Phase 1 — the Settings window: fixed sidebar on the left, detail pane on
+//  the right.
 //
-//  This lives in a plain `Window` scene rather than SwiftUI's `Settings`
-//  scene. The Settings scene manages its own chrome and sizing and does not
-//  give a NavigationSplitView room to lay out its sidebar. A Window scene is
-//  an ordinary window this app fully controls — which is also what Phase 2's
-//  permissions walkthrough and Phase 4's HUD will need.
+//  This deliberately does NOT use NavigationSplitView. That container is
+//  built for navigation hierarchies that adapt to the space available: it
+//  collapses, hides, and restores its columns on its own. Useful in an app
+//  where the sidebar is a navigation stack; actively unhelpful here, where
+//  the sidebar is four fixed rows that must always be visible. Its adaptive
+//  behaviour was emptying the sidebar on resize.
 //
-//  Liquid Glass is not hand-applied here. Built against the macOS 26 SDK,
-//  NavigationSplitView renders its own sidebar in glass. Over-applying the
-//  material is the usual mistake; it is meant for floating elements, not for
-//  every surface.
+//  A plain HStack with a fixed-width List has no adaptive behaviour to fight.
+//  The layout is exactly what is written here at every window size.
 //
 
 import SwiftUI
@@ -29,32 +28,37 @@ struct SettingsWindow: View {
     /// selected, so the binding has to be able to represent that.
     @State private var selection: SettingsTab? = .general
 
+    /// Falls back to General if the list somehow ends up with no selection,
+    /// so the detail pane is never blank.
+    private var tab: SettingsTab { selection ?? .general }
+
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             List(selection: $selection) {
                 ForEach(SettingsTab.allCases) { tab in
                     Label(tab.title, systemImage: tab.systemImage)
                         .tag(tab)
                 }
             }
-            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 260)
-        } detail: {
-            let tab = selection ?? .general
+            // `.sidebar` is the list style that gives the translucent
+            // material and rounded selection macOS sidebars use.
+            .listStyle(.sidebar)
+            // Fixed, not flexible. A settings sidebar has nothing to gain
+            // from being resizable, and a fixed width cannot be negotiated
+            // down to zero.
+            .frame(width: 210)
+
+            Divider()
 
             SettingsDetail(tab: tab)
-                // The title and subtitle go in the window's own title bar
-                // rather than being drawn inside the pane. macOS 26 title
-                // bars are translucent and content passes underneath them,
-                // so a hand-drawn header at the top of the pane ends up
-                // hidden behind the chrome.
-                .navigationTitle(tab.title)
-                .navigationSubtitle(tab.subtitle)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // The window has no natural size of its own — its content is a
-        // sidebar and a centred card, neither of which implies a shape. Left
-        // unconstrained, macOS picks something arbitrary. `ideal` sets the
-        // size the window opens at; `min` sets how far it can be dragged in.
-        .frame(minWidth: 760, idealWidth: 820, minHeight: 480, idealHeight: 560)
+        .frame(minWidth: 700, idealWidth: 820, minHeight: 440, idealHeight: 560)
+        // Title and subtitle go in the window's own title bar. macOS 26 title
+        // bars are translucent and content passes underneath them, so a
+        // header drawn at the top of the pane ends up hidden behind chrome.
+        .navigationTitle(tab.title)
+        .navigationSubtitle(tab.subtitle)
     }
 }
 
@@ -64,19 +68,16 @@ private struct SettingsDetail: View {
     let tab: SettingsTab
 
     var body: some View {
-        Group {
-            switch tab {
-            case .general:    GeneralSettingsView()
-            case .hotkey:     HotkeySettingsView()
-            case .dictionary: DictionarySettingsView()
-            case .history:    HistorySettingsView()
-            }
+        switch tab {
+        case .general:    GeneralSettingsView()
+        case .hotkey:     HotkeySettingsView()
+        case .dictionary: DictionarySettingsView()
+        case .history:    HistorySettingsView()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
 #Preview {
     SettingsWindow()
-        .frame(width: 780, height: 520)
+        .frame(width: 820, height: 560)
 }
