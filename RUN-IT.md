@@ -47,12 +47,13 @@ The first run takes a minute or two. After that it's a few seconds.
 - A **microphone icon** appears in your menu bar, top-right
 - **No Dock icon**, no window on screen — the app lives only in the menu bar
 - Clicking the microphone opens a small menu: **Settings…** and **Quit Dictdotclick**
-- **Settings…** opens a placeholder window that says "Settings arrive in Phase 1"
+- **Settings…** opens a window with a sidebar: General / Hotkey / Dictionary / History. Each pane
+  shows a frosted-glass card naming the phase that fills it in
 - **Quit** removes the icon
 - Pressing **⌘-Tab** does *not* list Dictdotclick
 
-That's the whole of Phase 0. The app does nothing useful yet — that's the point. It proves the
-toolchain works end to end before any real feature depends on it.
+That's Phases 0 and 1. The app still does nothing useful — that's the point. It proves the toolchain
+and the Liquid Glass material work end to end before any real feature depends on them.
 
 ---
 
@@ -67,7 +68,8 @@ Two you might hit, and what they mean:
 | What you see | What it means |
 |---|---|
 | "Signing for Dictdotclick requires a development team" | Click the project name in the left sidebar → **Signing & Capabilities** → set **Team** to your personal Apple ID. Free, no paid account needed. |
-| Anything mentioning a deployment target or SDK | The project targets macOS 14 to stay compatible. If Xcode objects, paste the message — it's a one-line fix. |
+| Anything mentioning a deployment target or SDK | The project targets macOS 26, which Liquid Glass requires. If Xcode objects, paste the message — it's a one-line fix. |
+| Anything mentioning `glassEffect` | The Liquid Glass API name, which can't be checked without a compiler. Paste the exact error. |
 
 ---
 
