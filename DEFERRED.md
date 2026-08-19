@@ -3,7 +3,7 @@
 Outstanding and deliberately-postponed work. `BUILD-SPEC.md` owns current state; this file owns
 what's *not* done and why.
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ---
 
@@ -11,10 +11,15 @@ Last updated: 2026-08-18
 
 | Question | Why it matters | Needed by |
 |---|---|---|
-| What macOS version is on Philip's Mac? | Liquid Glass needs macOS 26 (Tahoe). Below that we fall back to `.ultraThinMaterial`. Changes what Phase 1 can look like. | Phase 1 |
-| Is Xcode installed? | Nothing can be built or run without it. Free from the Mac App Store, ~10 GB. | Phase 0 |
 | Apple Developer account? | Not needed to run the app locally on his own Mac (free signing works). Only needed to distribute it to anyone else. | Only if sharing |
 | Preferred default hotkey? | Ships as the out-of-box default; user-changeable in Settings. | Phase 3 |
+
+### Answered
+
+| Question | Answer | Date |
+|---|---|---|
+| What macOS version is on Philip's Mac? | **macOS 26 (Tahoe)** — full Liquid Glass available, no fallback path needed. | 2026-08-19 |
+| Is Xcode installed? | **Not yet** — downloading from the Mac App Store. Blocks all building and running until done. | 2026-08-19 |
 
 ---
 

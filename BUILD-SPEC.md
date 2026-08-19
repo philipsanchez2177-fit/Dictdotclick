@@ -3,7 +3,7 @@
 **Read this first, every session.** This file owns current architecture and state.
 `DEFERRED.md` owns outstanding work. `SESSION_HANDOFF.md` owns what happened last session.
 
-Last updated: 2026-08-18
+Last updated: 2026-08-19
 
 ---
 
@@ -30,9 +30,13 @@ Design language: native macOS, Liquid Glass.
 | `.claude/skills/ddcc/SKILL.md` | Done — end-of-session calibrate skill |
 | `.gitignore` | Done |
 | `docs/archive/` | Done — empty, awaiting first archived handoff |
-| Xcode project | **Not started** — Phase 0 |
+| `README.md` | Done |
+| `scaffold/` | Temporary — staged Phase 0 files, delete after the Xcode project exists |
+| Xcode project | **In progress** — Phase 0, awaiting Xcode install on the Mac |
 
-**Next up: Phase 0** (scaffold the Xcode project).
+**Phase 0 in progress.** App shell written in the container; the Xcode project itself has to be
+created by Xcode's New Project wizard on the Mac (see `scaffold/HOW-TO-USE.md`). Xcode is not yet
+installed — that download is the blocker.
 
 ---
 
@@ -92,7 +96,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Xcode project, folder structure, README. Launches to an empty menu bar icon. | Not started |
+| 0 | Xcode project, folder structure, README. Launches to an empty menu bar icon. | In progress |
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | Not started |
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | Not started |
 | 3 | Hotkey recorder enforcing decision 6, conflict detection, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | Not started |
@@ -112,9 +116,8 @@ and no Xcode. Code is written in the container and built on Philip's Mac. Conseq
 may report Swift as verified or working. `SESSION_HANDOFF.md` carries a **"Needs verifying on the
 Mac"** checklist that persists until Philip confirms each item.
 
-**Liquid Glass requires macOS 26 (Tahoe).** On macOS 14/15 the app falls back to
-`.ultraThinMaterial` — visually close, not identical. *Philip's macOS version is not yet confirmed
-— check at Phase 1.*
+**Liquid Glass requires macOS 26 (Tahoe).** Confirmed 2026-08-19: Philip's Mac runs macOS 26, so
+full Liquid Glass is available and no `.ultraThinMaterial` fallback path needs building.
 
 **Accessibility permission is mandatory** for both the global hotkey and auto-typing. There is no
 way around it; Apple gates synthetic keystrokes deliberately. Phase 2 exists to make that a smooth

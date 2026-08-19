@@ -43,15 +43,25 @@ mechanism).
 
 ## Needs verifying on the Mac
 
-- [ ] **`/ddcc` loads as a skill.** Skills are discovered at session start, so it was not loadable in
-      the session that created it — `Skill(ddcc)` returned "Unknown skill," which is expected.
-      *Next session: run `/ddcc`. Expect it to load and follow its steps. If it reports unknown, the
-      frontmatter needs a look.*
+- [x] **`/ddcc` loads as a skill.** Confirmed 2026-08-19 — it appears in the session's skill list, so
+      the frontmatter is valid. (It was undiscoverable in the session that created it because skills
+      are loaded at session start; that was expected.)
 - [ ] **`/ddcc` guardrails are untested.** The repo check (refuse outside Dictdotclick) and the
       branch check (refuse on `main`) are written but have never executed. *Confirm on the first
       real run.*
 
-No Swift exists yet, so nothing is pending a compile.
+**Phase 0, added 2026-08-19 — written in the container, never compiled:**
+
+- [ ] **Create the Xcode project.** Follow `scaffold/HOW-TO-USE.md` end to end — wizard settings,
+      the `LSUIElement` key, dropping in `DictdotclickApp.swift`, deleting `ContentView.swift`.
+      *Blocked on the Xcode download.*
+- [ ] **`scaffold/DictdotclickApp.swift` compiles and runs.** *Success: a mic icon in the menu bar,
+      no Dock icon, no window. Menu opens with Settings… and Quit. Settings… opens a placeholder
+      window. ⌘-Tab does not list the app.*
+- [ ] **`SettingsLink` works in an agent app.** Menu-bar-only apps (`LSUIElement`) sometimes need an
+      explicit `NSApp.activate` before a window will come to the front. *If Settings… opens nothing
+      or opens it behind other apps, that's the cause — report it and it gets fixed next session.*
+- [ ] **Delete `scaffold/` once its contents are in the project.**
 
 ## Gotchas / things to watch for
 
@@ -64,9 +74,9 @@ No Swift exists yet, so nothing is pending a compile.
 
 - **Branch:** `claude/init-ayj2tg`, pushed and tracking `origin`. `main` untouched. No open PRs.
 - **Working tree:** clean. Nothing uncommitted, nothing left half-finished.
-- **Next step:** Phase 0 — scaffold the Xcode project so a real app icon appears in the menu bar.
-- **Blocking questions for Philip** (in `DEFERRED.md`): what macOS version he's on (Liquid Glass
-  needs macOS 26 Tahoe; below that we fall back to `.ultraThinMaterial`), and whether Xcode is
-  installed. Nothing can be run without Xcode.
+- **Next step:** install Xcode, then work `scaffold/HOW-TO-USE.md`. Phase 0 finishes the moment a
+  mic icon appears in the menu bar.
+- **Both blocking questions are answered** (2026-08-19): macOS 26 Tahoe, so full Liquid Glass and no
+  fallback path to build; Xcode not yet installed, and that download blocks everything.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.
