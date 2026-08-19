@@ -55,17 +55,16 @@ mechanism).
 - [x] **The Xcode project opens and builds.** Confirmed 2026-08-19 — `xcodebuild` reported
       `** BUILD SUCCEEDED **` and the app launched with a mic icon in the menu bar. The
       hand-authored `project.pbxproj` and synchronized folders both work.
-- [ ] **Menu behavior.** *Click the mic icon: Settings… and Quit should appear. Settings… should
-      open a placeholder window. ⌘-Tab should not list Dictdotclick.* Build and launch are proven;
-      these four interactions are not.
+- [x] **Menu and Settings window.** Confirmed 2026-08-19 — the mic icon opens its menu and
+      Settings… brings up the placeholder window in front. `SettingsLink` works in an `LSUIElement`
+      app with no `NSApp.activate` workaround, which had been flagged as the likely failure.
+- [ ] **Dock icon absence / ⌘-Tab absence.** Not explicitly checked. `LSUIElement` is clearly
+      active (no window at launch), so this is expected to pass — just unconfirmed.
 - [x] **Synchronized folders sweep up non-source files.** Confirmed the hard way 2026-08-19: seven
       `.gitkeep` placeholders broke the build with `Multiple commands produce`. Placeholders removed;
       rule recorded in `BUILD-SPEC.md`.
-- [ ] **`SettingsLink` works in an agent app.** Menu-bar-only apps (`LSUIElement`) sometimes need an
-      explicit `NSApp.activate` before a window will come to the front. *If Settings… opens nothing
-      or opens it behind other apps, that's the cause — report it and it gets fixed next session.*
-- [ ] **Signing.** *If Xcode says a development team is required, set Team to your personal Apple ID
-      under Signing & Capabilities. Free. Noted here because it's the most common first-run stop.*
+- [x] **Signing.** Confirmed 2026-08-19 — "Sign to Run Locally" worked with no Apple ID or team
+      configuration needed.
 
 ## Gotchas / things to watch for
 
