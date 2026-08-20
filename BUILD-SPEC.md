@@ -120,6 +120,20 @@ update this file if any changes.
 | 6 | Hotkey rules | **No bare character keys**, with one named exception (below). Allowed: any combo containing a modifier (⌘⌥⌃⇧), modifier-only taps, standalone function-row keys (F1–F20), and a **double-tap of `` ` ``**. |
 | 7 | App home | **Menu bar only.** No Dock icon, no ⌘-Tab entry. |
 
+### The double-tap implementation, decided in Phase 3
+
+Two ways to handle a double-tap on a key that also types a character:
+
+1. **Let the first press through, delete both characters** if a second arrives. No latency, but the
+   app must synthesise Delete into whatever window is focused. In a spreadsheet that clears a cell;
+   in some apps it navigates back. A mistimed keystroke destroys the user's work, silently.
+2. **Hold the first press ~200 ms**, replay it as a real keystroke if no second press arrives.
+   Costs a short delay on one key and can damage nothing.
+
+**(2) is implemented.** Phase 2's notes had leaned toward (1) on latency grounds; writing it made the
+risk concrete and the decision reversed. Held keystrokes are replayed marked with
+`eventSourceUserData`, so the tap recognises its own output instead of catching it again.
+
 ### On decision 6 — the default hotkey is a double-tap of `` ` ``
 
 Settled 2026-08-19. A single bare `` ` `` was asked for first; it is a character key, and claiming it
@@ -181,7 +195,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 0 | Xcode project, folder structure, README. Launches to an empty menu bar icon. | **Done** — builds and launches, 2026-08-19 |
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | **Done** — builds, runs, verified 2026-08-19 |
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
-| 3 | Hotkey recorder enforcing decision 6, conflict detection, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | Not started |
+| 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Written, not yet compiled** |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | Not started |
 | 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |

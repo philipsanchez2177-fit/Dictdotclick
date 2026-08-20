@@ -9,13 +9,34 @@
 import SwiftUI
 import AppKit  // for NSApplication
 
+/// Starts the hotkey listener at launch.
+///
+/// This has to be an AppDelegate rather than a `.task` on a Scene. Every
+/// window in this app is suppressed at launch, so no window's `.task` runs
+/// until the user opens something — and a hotkey that only works after you
+/// visit Settings is not a hotkey. `applicationDidFinishLaunching` is the one
+/// hook that reliably fires in a windowless app.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        DictationController.shared.startMonitoring()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        DictationController.shared.stopMonitoring()
+    }
+}
+
 @main
 struct DictdotclickApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
+    /// Owns the hotkey listener and the listening state. Read here so the
+    /// menu bar icon can reflect it: with no audio yet, that icon is the only
+    /// proof the global hotkey works from inside other apps.
+    @State private var dictation = DictationController.shared
+
     var body: some Scene {
-        // MenuBarExtra is SwiftUI's native menu-bar item. The `.menu` style
-        // gives a plain dropdown; later phases may switch to `.window` for
-        // richer content.
-        MenuBarExtra("Dictdotclick", systemImage: "mic.fill") {
+        MenuBarExtra("Dictdotclick", systemImage: dictation.isListening ? "mic.circle.fill" : "mic.fill") {
             MenuBarMenu()
         }
         .menuBarExtraStyle(.menu)
@@ -27,17 +48,17 @@ struct DictdotclickApp: App {
         }
         .defaultSize(width: 820, height: 560)
         .windowResizability(.contentMinSize)
-        // Scenes normally open when the app launches. This app must launch to
-        // nothing but a menu bar icon, so this one stays closed until asked
-        // for.
         .defaultLaunchBehavior(.suppressed)
 
         // Phase 2 — the permissions walkthrough. Its own window rather than a
         // Settings tab: it is a task with an end state ("all granted"), not a
-        // set of preferences to browse, and Phases 3 and 4 will want to open
-        // it directly the moment a permission is found missing.
+        // set of preferences to browse.
         Window("Dictdotclick Permissions", id: PermissionsWindow.windowID) {
             PermissionsWindow()
+                // Granting Accessibility here should make the hotkey start
+                // working immediately, not after a relaunch. `startMonitoring`
+                // is a no-op if the tap is already running.
+                .onDisappear { dictation.startMonitoring() }
         }
         .defaultSize(width: 660, height: 560)
         .windowResizability(.contentMinSize)
@@ -49,15 +70,21 @@ struct DictdotclickApp: App {
 /// read from the SwiftUI environment, which is only available inside a View.
 private struct MenuBarMenu: View {
     @Environment(\.openWindow) private var openWindow
-
-    /// Shared with the permissions window, so both agree about system state.
     @State private var permissions = PermissionsModel.shared
+    @State private var dictation = DictationController.shared
 
     var body: some View {
+        // Current state, stated in words. The icon carries it at a glance;
+        // this is here for when a glance isn't enough.
+        Text(dictation.isListening
+             ? "Listening — press \(dictation.binding.displayString) to stop"
+             : "Idle — press \(dictation.binding.displayString) to dictate")
+
+        Divider()
+
         // Shown only when something is actually missing. A permanent
-        // "Permissions" row would train the user to ignore it; a row that
-        // appears only when it matters is worth reading.
-        if !permissions.allGranted {
+        // "Permissions" row would train the user to ignore it.
+        if !permissions.allGranted || dictation.monitorFailed {
             Button("⚠︎ Permissions needed…") {
                 open(PermissionsWindow.windowID)
             }
