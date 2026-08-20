@@ -39,13 +39,29 @@ incidentally confirms the hand-authored file parses cleanly.
 
 ## Needs verifying on the Mac
 
-**Nothing outstanding.** Phases 0 and 1 are both confirmed as of 2026-08-19:
+**Phase 2's ungranted-state paths are unverified.** Both permissions were already granted on
+Philip's Mac when the window was first opened, so only the "all set" path has been seen working.
+Untested, and only reachable by revoking a permission in System Settings → Privacy & Security:
+
+- [ ] **Microphone `NOT ASKED` → Allow… button.** *Expect macOS's own prompt, then the badge turning
+      green on its own within ~1s.* This is the polling path — the thing that stops the window
+      looking broken after a user grants access in another app.
+- [ ] **Accessibility `OFF` → Open Settings button.** *Expect System Settings to land on Privacy &
+      Security → Accessibility.* Apple's deep-link URL scheme is undocumented and has changed
+      between macOS releases; if it opens the wrong pane, the fix is one line in
+      `Permission.systemSettingsURL`.
+
+Low priority — nothing is blocked by it, and Phase 3 will exercise the accessibility path naturally.
+
+**Confirmed as of 2026-08-19:**
 
 - [x] No Dock icon, not in ⌘-Tab. Decision 7 satisfied.
 - [x] Builds at `MACOSX_DEPLOYMENT_TARGET = 26.0`.
 - [x] `.glassEffect` compiles and renders.
 - [x] Settings window: four sidebar rows that stay visible at every size, title bar showing pane
       title and subtitle, window resizes freely down to ~700×440.
+- [x] Permissions window opens from the menu bar, reads both permissions correctly, renders its
+      glass cards, and shows the "You're all set" state with green badges.
 
 No uncompiled Swift exists in the repo.
 
