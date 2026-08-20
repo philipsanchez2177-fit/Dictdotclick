@@ -11,12 +11,12 @@ Last updated: 2026-08-19
 
 | Question | Why it matters | Needed by |
 |---|---|---|
-| Preferred default hotkey? | Ships as the out-of-box default; user-changeable in Settings. | Phase 3 |
 
 ### Answered
 
 | Question | Answer | Date |
 |---|---|---|
+| Preferred default hotkey? | **Double-tap `` ` ``.** A single bare backtick was asked for first, but it would make the key untypable — see BUILD-SPEC decision 6. | 2026-08-19 |
 | What macOS version is on Philip's Mac? | **macOS 26 (Tahoe)** — full Liquid Glass available, no fallback path needed. | 2026-08-19 |
 | Is Xcode installed? | **Yes** — installed and working. | 2026-08-19 |
 | Does the hand-authored Xcode project open and build? | **Yes** — `BUILD SUCCEEDED`, app launches. Xcode's New Project wizard is out of the workflow permanently. | 2026-08-19 |
