@@ -24,6 +24,24 @@ Last updated: 2026-08-19
 
 ---
 
+## Cut from a phase, not yet rebuilt
+
+| Item | Why it was cut | Cost |
+|---|---|---|
+| **Hotkey conflict detection** (Phase 3) | Planned, then dropped during implementation without being called out — the phase row in `BUILD-SPEC.md` was quietly edited to match. Recorded here so the gap is visible rather than forgotten. | Found the hard way on 2026-08-19: recording ⌃⌥D triggered Magnet, which had already claimed it. |
+
+**On why it is genuinely hard.** macOS publishes no registry of hotkeys other apps have claimed.
+Third-party apps (Magnet, Raycast, Alfred) grab keys with the same system-wide mechanism Dictdotclick
+uses, and they are invisible to us until a keystroke produces unexpected behaviour.
+
+What *is* achievable, if it earns a slot later:
+
+- Warn on Apple's own shortcuts, readable from `com.apple.symbolichotkeys`.
+- After recording, offer a "test it" step so a collision surfaces immediately rather than a week
+  later.
+- Treat "the app never saw the keystroke" as evidence of a conflict: if the recorder times out
+  waiting for a key the user says they pressed, something upstream swallowed it.
+
 ## Deferred by decision
 
 Considered during the 2026-08-18 interview, deliberately postponed. Not forgotten, not rejected.
