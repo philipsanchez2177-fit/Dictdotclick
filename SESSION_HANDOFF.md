@@ -1,99 +1,102 @@
-# SESSION HANDOFF — 2026-08-19-b
+# SESSION HANDOFF — 2026-08-20-a
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.
-Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-19-a.md`.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-19-b.md`.
 
 ## What happened this session
 
-**Phase 1 shipped and is verified on the Mac.** The app has a real Settings window: fixed sidebar
-(General / Hotkey / Dictionary / History), detail pane with the tab's title and subtitle in the
-window title bar, and a Liquid Glass card per pane naming the phase that fills it in. Skeleton only
-— no working controls, by design.
+**Phases 2 and 3 both shipped and are fully verified on the Mac.** The app now responds to the user
+for the first time: pressing the bound hotkey from inside any app toggles its listening state.
 
-Seven new files in `Dictdotclick/UI/Settings/`, picked up automatically by the synchronized folder
-with **no `project.pbxproj` edits**. That promise from Phase 0 held.
+**Phase 2 — permissions walkthrough.** Its own window rather than a Settings tab, because it is a
+task with an end state rather than preferences to browse. Reads Microphone (AVFoundation) and
+Accessibility (`AXIsProcessTrusted`), offers the system prompt where one exists, and deep-links to
+the right System Settings pane. Polls once a second while open and stops on close — macOS sends no
+notification when a permission changes, so without polling the window keeps showing a red dot after
+the user has already granted access.
 
-**Two unknowns cleared, both of which Phase 4 depended on.** `.glassEffect` compiles and renders, so
-the Liquid Glass pipeline works and the floating recording HUD can rely on it. And the deployment
-target was raised **14.0 → 26.0**, which builds clean. That was a real decision, not a detail:
-Liquid Glass is macOS 26-only, and the alternative was gating every use behind `#available` and
-maintaining a second visual path for users who don't exist. Revisit only if the app ships beyond
-Philip's Mac.
+Every path was exercised, including the ungranted ones. Apple's undocumented
+`x-apple.systempreferences:...PrivacySecurity.extension?Privacy_*` deep links land correctly on
+macOS 26.
 
-**Four rebuilds, one cause.** `NavigationSplitView` broke the sidebar three separate times — empty
-inside the `Settings` scene, then empty again on resize after moving to a `Window` scene. It adapts
-its columns to available space on its own, which is right for a navigation hierarchy and wrong for
-four fixed rows. The first diagnosis blamed the `Settings` scene and *appeared* to work, which is
-why it survived two more rounds. The window is now a plain `HStack` with a fixed-width
-`List(.sidebar)` — no negotiation, no collapse, identical layout at every size.
+**Phase 3 — the global hotkey.** A `CGEvent` tap watching for one binding, swallowing it on a match
+and passing everything else through. Recorder UI enforcing decision 6, rejections explained inline,
+binding persisted to `hotkey.json` through a new `JSONStore`. An `AppDelegate` was added purely to
+start the monitor at launch: every scene in this app is `.defaultLaunchBehavior(.suppressed)`, so no
+Scene `.task` runs until a window opens, and a hotkey that only works after visiting Settings is not
+a hotkey.
 
-Five layout rules from this went into `BUILD-SPEC.md`, since Phase 2 builds another window.
+**The session's real cost was a permission that would not stick.** The tap did nothing on first run.
+System Settings showed Dictdotclick switched **on** while `AXIsProcessTrusted()` returned false —
+both true at once. macOS ties the grant to the app's *code signature*, and with **Team: None** Xcode
+signs each build "to run locally" with an ad-hoc identity regenerated every time. Every ⌘R produced
+an app macOS had never seen; the list entry pointed at a build that no longer existed.
 
-**Philip cleared Xcode's "Update to recommended settings" warning** and pushed the result (`63a016e`)
-— ~16 extra `CLANG_WARN_*` flags, dead-code stripping, and `LastUpgradeCheck` bumped to Xcode 26.
-Reviewed here: nothing behavioural. Xcode also reformatted one block of `project.pbxproj`, which
-incidentally confirms the hand-authored file parses cleanly.
+Fixed durably by setting a development team (free Apple ID), which produces a stable
+`Apple Development` signature. Without it this would have recurred on every build for the remaining
+six phases.
 
-**The `Dictdotclick-wizard-backup` folder was deleted** from Philip's Mac. Gone from the gotchas.
+**A decision reversed.** The double-tap was planned as "let the first press through, delete both
+characters if a second arrives" — no latency. Writing it made the cost concrete: it means
+synthesising Delete into whatever window is focused, which in a spreadsheet clears a cell, silently.
+Reversed to holding the first press ~200 ms and replaying it if no second comes. Confirmed on the Mac
+that a single backtick still types normally.
+
+**Two things the plan had wrong about the world**, both now recorded:
+- **Function keys are unusable on this Mac** — Logitech software claims the F row. One of decision
+  6's three allowed shapes is not available to Philip.
+- **Conflict detection was cut from Phase 3** without being flagged, and the phase table was edited
+  to match. Surfaced when recording ⌃⌥D resized a window — Magnet had claimed it and consumed the
+  keystroke before the recorder saw it. Now in `DEFERRED.md` with what is achievable.
 
 ## Needs verifying on the Mac
 
-**Nothing outstanding.**
+**Nothing outstanding.** No uncompiled Swift exists in the repo.
 
-**Confirmed as of 2026-08-19:**
+Confirmed 2026-08-20:
 
-- [x] No Dock icon, not in ⌘-Tab. Decision 7 satisfied.
-- [x] Builds at `MACOSX_DEPLOYMENT_TARGET = 26.0`.
-- [x] `.glassEffect` compiles and renders.
-- [x] Settings window: four sidebar rows that stay visible at every size, title bar showing pane
-      title and subtitle, window resizes freely down to ~700×440.
-- [x] Permissions window opens from the menu bar, reads both permissions correctly, renders its
-      glass cards, and shows the "You're all set" state with green badges.
-- [x] **Every Phase 2 path, including the ungranted ones.** Confirmed by walking a permission from
-      scratch: Allow… showed macOS's own microphone prompt; Open Settings landed directly on
-      Privacy & Security → Accessibility; toggling the switch (with an admin password) turned the
-      badge green **without any interaction in the app**. That last part confirms the polling — the
-      thing that stops the window looking broken after a grant made in another app.
-- [x] **Apple's System Settings deep-link URLs are correct on macOS 26.** The
-      `x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_*` form works.
-      Undocumented and version-sensitive, so this is worth re-checking after a macOS upgrade;
-      `Permission.systemSettingsURL` is the one place to change it.
-
-No uncompiled Swift exists in the repo.
+- [x] Permissions window: reads both permissions, renders, and every path works — the system prompt,
+      the System Settings deep link, and the polling that turns a badge green with no interaction in
+      the app.
+- [x] `CGEvent` tap toggles listening state from inside another app; the menu bar icon reflects it.
+- [x] A single backtick still types normally, so the hold-and-replay does not eat a key.
+- [x] Recorder accepts valid bindings and refuses bare character keys with the reason shown inline.
+- [x] Binding survives quit and relaunch via `hotkey.json`, confirming `JSONStore` works.
+- [x] A stable `Apple Development` signature keeps the Accessibility grant across rebuilds.
 
 ## Gotchas / things to watch for
 
-- **Don't use `NavigationSplitView` for fixed panes.** It cost three rebuilds. Reach for it only
-  where the sidebar is genuinely a navigation stack. Full rule set in `BUILD-SPEC.md`.
-- **A change that makes a symptom disappear is not proof of the cause.** Moving off the `Settings`
-  scene produced a working sidebar and hid the real bug for two more rounds. Only the recurrence
-  told them apart.
-- **Never hand Philip `git rev-parse --show-toplevel`.** It only works from inside the repo, so in a
-  freshly-opened Terminal (which starts at `~`) it fails and silently no-ops every git command
-  chained behind it — including the `git pull`. Two rounds were lost testing a build that predated
-  the fixes. Use the absolute path:
-  `cd ~/Documents/Claude/Projects/Dictdotclick/Dictdotclick`.
-- **The repo root contains a folder with the same name.** `Dictdotclick/Dictdotclick/` holds the
-  Swift source; `.xcodeproj` sits in the outer one. One `cd Dictdotclick` too many lands in the
-  source folder, where git still works but `open Dictdotclick.xcodeproj` does not.
-- **Never launch the built `.app` directly.** An instance started with `open .../Dictdotclick.app`
-  escapes Xcode's control — Stop and the Replace prompt don't touch it — and the menu bar ends up
-  with two mic icons. Launch with ⌘R only. `killall Dictdotclick` is the reset.
-- **At Xcode's Replace/Add prompt, always Replace.** "Add" is the other route to duplicate icons.
-- **When a fix "doesn't work," confirm it's actually on the Mac before re-diagnosing.**
+- **Team must stay set in Signing & Capabilities.** If it ever reverts to None, the app signs
+  ad-hoc again and Accessibility silently stops applying after the next build. That symptom —
+  System Settings says on, the app says off — means signing, not code.
+- **Recovering a stale Accessibility entry:** select Dictdotclick in System Settings → Privacy &
+  Security → Accessibility, click **−** to remove it, then use **Request Access** in the app.
+  Toggling the old entry does not work; it re-approves a build that no longer exists.
+- **Philip's binding is ⌘\` , not the shipped default** (double-tap backtick). ⌘\` is macOS's
+  "cycle windows within app" shortcut, so binding it likely shadows that. Accepted knowingly — not a
+  bug.
+- **Nothing non-source goes inside `Dictdotclick/`,** and no same-named files at any depth. The
+  synchronized folder compiles or copies everything it finds.
+- **Six compile errors often means one real problem.** `HotkeyRejection` missing `Error` conformance
+  produced six; five were cascade. Start at the top of Xcode's list.
+- Earlier gotchas that still hold: never `git rev-parse --show-toplevel` in a fresh Terminal; never
+  launch the built `.app` directly; always Replace at Xcode's Replace/Add prompt; don't use
+  `NavigationSplitView` for fixed panes.
 
 ## Anything to know before continuing
 
 - **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
-- **Working tree:** clean. Nothing left uncommitted.
-- **Next step: Phase 2** — the permissions walkthrough (Microphone + Accessibility) with live status
-  and a System Settings deep link. Sequenced early because permissions are where users of this kind
-  of app give up. It builds a second window, so the `BUILD-SPEC.md` layout rules apply directly.
-- **`BUILD-SPEC.md` was updated this session** — Phase 1 marked done, deployment target row
-  rewritten, and a new "Settings window layout" section added. It is current, not stale.
-- **`DEFERRED.md` was not changed** — nothing this session touched its territory. Still current.
-- **Remaining open question:** preferred default hotkey, needed by Phase 3.
-- **`SWIFT_VERSION` is still 5.0.** Untouched and not yet worth revisiting.
+- **Working tree:** clean.
+- **Next step: Phase 4** — `AVAudioEngine` capture plus the floating Liquid Glass pill with a live
+  waveform and timer. Audio is captured and discarded, deliberately: it proves microphone and visuals
+  work independently, so when Phase 5 adds Whisper a failure is unambiguous. The pill is an
+  `NSPanel` (`.nonactivatingPanel`, `.floating`), not a `Window` — it must float above fullscreen
+  apps without taking keyboard focus. `.glassEffect` is already proven.
+- **`BUILD-SPEC.md` and `DEFERRED.md` were both updated this session** and are current, not stale.
+  BUILD-SPEC gained four sections: the signing trap, the F-row finding, the double-tap
+  implementation decision, and Philip's actual binding.
+- **No open questions.** The default-hotkey question is answered and closed.
+- **`SWIFT_VERSION` is still 5.0.** Untouched, still not worth revisiting.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.

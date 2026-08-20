@@ -183,3 +183,95 @@ work, the first question is whether they have the fix.
 
 Phases 0 and 1 are verified on the Mac. Liquid Glass renders, the macOS 26 target builds clean, and
 the app still launches to nothing but a microphone icon in the menu bar.
+
+---
+
+## 2026-08-20 — Two phases, and a permission that would not stick
+
+Phases 2 and 3 both shipped: the permissions walkthrough, and the global hotkey. The hotkey is the
+first thing in this app that responds to the user, and getting there cost an hour of debugging a
+problem that was not in the code at all.
+
+### Building the wall before the door
+
+Phase 2 was sequenced deliberately early. A dictation app needs two macOS permissions — Microphone to
+hear, Accessibility to watch the keyboard and type the result — and Accessibility is the most
+powerful grant on the platform. An app that holds it can read and synthesise every keystroke on the
+machine. Apple gates it behind a padlock and an admin password for exactly that reason, and it is
+where users of this category of app give up.
+
+Two permissions, two unrelated APIs. Microphone reports four distinct states through AVFoundation and
+can raise the system prompt once. Accessibility answers a bare `AXIsProcessTrusted()` boolean that
+cannot distinguish "refused" from "never asked". Neither notifies anyone when the answer changes: a
+user grants permission in System Settings, switches back, and the app is still showing a red dot
+because nothing told it otherwise. That moment is when people conclude software is broken, so the
+window polls once a second while it is open and stops the instant it closes.
+
+That paid off immediately. Walking a permission from scratch showed Apple's own prompt, a deep link
+landing directly on Privacy & Security → Accessibility, and a badge turning green with no interaction
+in the app at all. The deep-link URL scheme is undocumented and has changed between macOS releases,
+so it was the least certain part of the phase and worth confirming rather than assuming.
+
+### The permission that would not stick
+
+Phase 3 built the event tap, and it did nothing. Backticks typed straight through as if the app were
+not running.
+
+The obvious read was a bug in the tap. The actual cause was that System Settings showed Dictdotclick
+switched **on** while `AXIsProcessTrusted()` kept returning false. Both statements were true at once.
+
+macOS ties an Accessibility grant to the app's *code signature*. With no development team configured,
+Xcode signs each build "to run locally" with an ad-hoc identity regenerated every time. Every ⌘R
+therefore produces an application macOS has never seen before, and the entry sitting in the
+permissions list points at a build that no longer exists. Toggling it re-approves a ghost.
+
+Two fixes, and only one of them is durable. The immediate recovery is to delete the stale entry
+outright and let the app re-register itself — which surfaced a genuine gap in the UI, since the
+accessibility row only ever offered "Open System Settings". Because the API always reports untrusted
+as denied, the code path that raises Apple's prompt was unreachable from the interface, and that
+prompt is precisely what re-registers the current build. A "Request Access" button went in.
+
+The durable fix is to sign the app with a stable identity. Setting a development team — a free Apple
+ID is enough — produces an `Apple Development` certificate that does not change between builds, so
+the grant survives. Without it, this would have recurred on every single build for the remaining six
+phases. The hour spent on it bought back the rest of the project.
+
+### A decision reversed on contact with the code
+
+The default hotkey started as a request for a bare backtick, which decision 6 forbids: claiming a
+character key makes that character untypable everywhere, forever. A double-tap was the compromise —
+one press types a backtick, two start dictation.
+
+That has an implementation fork. Either let the first press through instantly and delete both
+characters when a second arrives, or hold the first press briefly and replay it if no second comes.
+The first has no latency and was the recorded plan. Writing it made the cost concrete: it means
+synthesising Delete into whatever window happens to be focused. In a spreadsheet that clears a cell.
+The failure would be silent and would destroy the user's work.
+
+The plan reversed to holding the keystroke for 200 ms — a delay on exactly one key, and no capacity
+to damage anything. Held presses are replayed carrying a marker in `eventSourceUserData` so the tap
+recognises its own output rather than catching it again in a loop. Confirming that a single backtick
+still types normally was the single most important test of the phase; had the replay failed, the app
+would have eaten a key off the keyboard.
+
+### Two things the plan got wrong about the world
+
+Decision 6 permits three shapes: modifier combos, bare function keys, and the backtick double-tap.
+Function keys were the elegant one — no modifier to hold, no character sacrificed. On this Mac they
+are unusable, because Logitech's keyboard software claims the F row before macOS sees it. One of the
+three options is not available to the person the app is being built for.
+
+Conflict detection was also in the Phase 3 plan, dropped during implementation, and the phase table
+quietly edited to match — a scope reduction that was made invisible rather than flagged. It surfaced
+when recording ⌃⌥D resized a window instead: Magnet had already claimed that combination and consumed
+the keystroke before the recorder saw it. The recorder sat waiting for input that never arrived.
+
+It is genuinely hard. macOS publishes no registry of hotkeys other applications have claimed, and
+tools like Magnet, Raycast and Logitech Options grab keys through the same system-wide mechanism this
+app uses. They are invisible until a keystroke does something unexpected. The gap is now written down
+in `DEFERRED.md` with the three things that *are* achievable — warn on Apple's own shortcuts, offer a
+"test it" step after recording, and treat a recorder that sees nothing as evidence that something
+upstream ate the key.
+
+Writing the cut down was the point. A quietly narrowed scope is worse than an unbuilt feature,
+because nobody knows to miss it.
