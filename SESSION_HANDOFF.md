@@ -39,19 +39,7 @@ incidentally confirms the hand-authored file parses cleanly.
 
 ## Needs verifying on the Mac
 
-**Phase 2's ungranted-state paths are unverified.** Both permissions were already granted on
-Philip's Mac when the window was first opened, so only the "all set" path has been seen working.
-Untested, and only reachable by revoking a permission in System Settings → Privacy & Security:
-
-- [ ] **Microphone `NOT ASKED` → Allow… button.** *Expect macOS's own prompt, then the badge turning
-      green on its own within ~1s.* This is the polling path — the thing that stops the window
-      looking broken after a user grants access in another app.
-- [ ] **Accessibility `OFF` → Open Settings button.** *Expect System Settings to land on Privacy &
-      Security → Accessibility.* Apple's deep-link URL scheme is undocumented and has changed
-      between macOS releases; if it opens the wrong pane, the fix is one line in
-      `Permission.systemSettingsURL`.
-
-Low priority — nothing is blocked by it, and Phase 3 will exercise the accessibility path naturally.
+**Nothing outstanding.**
 
 **Confirmed as of 2026-08-19:**
 
@@ -62,6 +50,15 @@ Low priority — nothing is blocked by it, and Phase 3 will exercise the accessi
       title and subtitle, window resizes freely down to ~700×440.
 - [x] Permissions window opens from the menu bar, reads both permissions correctly, renders its
       glass cards, and shows the "You're all set" state with green badges.
+- [x] **Every Phase 2 path, including the ungranted ones.** Confirmed by walking a permission from
+      scratch: Allow… showed macOS's own microphone prompt; Open Settings landed directly on
+      Privacy & Security → Accessibility; toggling the switch (with an admin password) turned the
+      badge green **without any interaction in the app**. That last part confirms the polling — the
+      thing that stops the window looking broken after a grant made in another app.
+- [x] **Apple's System Settings deep-link URLs are correct on macOS 26.** The
+      `x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_*` form works.
+      Undocumented and version-sensitive, so this is worth re-checking after a macOS upgrade;
+      `Permission.systemSettingsURL` is the one place to change it.
 
 No uncompiled Swift exists in the repo.
 

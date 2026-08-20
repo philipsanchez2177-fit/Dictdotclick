@@ -180,7 +180,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 |---|---|---|
 | 0 | Xcode project, folder structure, README. Launches to an empty menu bar icon. | **Done** — builds and launches, 2026-08-19 |
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | **Done** — builds, runs, verified 2026-08-19 |
-| 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — verified 2026-08-19. Granted-state path confirmed; the not-yet-granted paths are unverified (see handoff). |
+| 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
 | 3 | Hotkey recorder enforcing decision 6, conflict detection, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | Not started |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | Not started |
 | 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
