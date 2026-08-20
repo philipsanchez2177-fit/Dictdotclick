@@ -120,6 +120,20 @@ update this file if any changes.
 | 6 | Hotkey rules | **No bare character keys**, with one named exception (below). Allowed: any combo containing a modifier (⌘⌥⌃⇧), modifier-only taps, standalone function-row keys (F1–F20), and a **double-tap of `` ` ``**. |
 | 7 | App home | **Menu bar only.** No Dock icon, no ⌘-Tab entry. |
 
+### Function keys are not a reliable escape hatch
+
+Decision 6 offers three shapes, and function keys were meant to be the one with no tradeoff — no
+modifier to hold, no character sacrificed. On Philip's Mac they are unusable: Logitech's keyboard
+software claims the F row before macOS sees it.
+
+Consequence: for this user the allowed set is really **modifier combos plus the double-tap of
+`` ` ``**. Keep that in mind before recommending an F key, and do not treat the F-row rule as a
+solution to a conflict.
+
+The same class of problem sits behind hotkey conflict detection generally — see `DEFERRED.md`.
+Anything that grabs keys system-wide (Magnet, Logitech Options, Raycast) is invisible to this app
+until a keystroke does something unexpected.
+
 ### The double-tap implementation, decided in Phase 3
 
 Two ways to handle a double-tap on a key that also types a character:

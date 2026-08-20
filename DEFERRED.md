@@ -30,6 +30,10 @@ Last updated: 2026-08-19
 |---|---|---|
 | **Hotkey conflict detection** (Phase 3) | Planned, then dropped during implementation without being called out — the phase row in `BUILD-SPEC.md` was quietly edited to match. Recorded here so the gap is visible rather than forgotten. | Found the hard way on 2026-08-19: recording ⌃⌥D triggered Magnet, which had already claimed it. |
 
+Confirmed the same day: ⌃⌥D never reached the recorder at all — the field stayed in its listening
+state while Magnet resized a window. An upstream tap can consume a keystroke entirely, so "the
+recorder saw nothing" is itself a conflict signal.
+
 **On why it is genuinely hard.** macOS publishes no registry of hotkeys other apps have claimed.
 Third-party apps (Magnet, Raycast, Alfred) grab keys with the same system-wide mechanism Dictdotclick
 uses, and they are invisible to us until a keystroke produces unexpected behaviour.
