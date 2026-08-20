@@ -72,7 +72,7 @@ enum HotkeyBinding: Codable, Equatable, Hashable {
 
 /// Why a key press was refused. Each case carries what to tell the user —
 /// a rejection with no explanation reads as a broken recorder.
-enum HotkeyRejection: Equatable {
+enum HotkeyRejection: Error, Equatable {
     case bareCharacterKey(name: String)
     case modifiersOnly
     case reserved(name: String)
