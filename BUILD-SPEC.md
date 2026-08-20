@@ -120,6 +120,15 @@ update this file if any changes.
 | 6 | Hotkey rules | **No bare character keys**, with one named exception (below). Allowed: any combo containing a modifier (⌘⌥⌃⇧), modifier-only taps, standalone function-row keys (F1–F20), and a **double-tap of `` ` ``**. |
 | 7 | App home | **Menu bar only.** No Dock icon, no ⌘-Tab entry. |
 
+### Philip's actual binding is ⌘\`, not the shipped default
+
+The default in code remains the double-tap of `` ` ``. Philip's own setting, persisted in
+`hotkey.json`, is **⌘\`** — chosen after ⌃⌥D collided with Magnet and the F row proved unusable.
+
+⌘\` is macOS's built-in "cycle windows within the current app". Dictdotclick sits ahead of it in the
+event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
+a future session doesn't treat lost window-cycling as a bug.
+
 ### Function keys are not a reliable escape hatch
 
 Decision 6 offers three shapes, and function keys were meant to be the one with no tradeoff — no
@@ -209,7 +218,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 0 | Xcode project, folder structure, README. Launches to an empty menu bar icon. | **Done** — builds and launches, 2026-08-19 |
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | **Done** — builds, runs, verified 2026-08-19 |
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
-| 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Core verified 2026-08-19** — double-tap toggles state from another app. Recorder + single-keystroke replay still unconfirmed. |
+| 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | Not started |
 | 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
