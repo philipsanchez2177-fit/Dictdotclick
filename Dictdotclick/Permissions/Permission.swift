@@ -53,7 +53,7 @@ enum Permission: String, CaseIterable, Identifiable, Hashable {
         case .microphone:
             return "Turn on the switch next to Dictdotclick."
         case .accessibility:
-            return "Find Dictdotclick in the list and turn it on. You may need to unlock the padlock first."
+            return "Find Dictdotclick in the list and turn it on. If it's already listed but won't stay on, select it, click \u{2212} to remove it, then use Request Access."
         }
     }
 

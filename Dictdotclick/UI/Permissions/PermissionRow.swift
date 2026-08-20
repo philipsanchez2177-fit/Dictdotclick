@@ -75,10 +75,23 @@ struct PermissionRow: View {
                 .buttonStyle(.borderedProminent)
 
         case .denied:
-            // No prompt is available any more, so send them where the switch
-            // actually lives.
-            Button("Open Settings", action: onOpenSettings)
-                .buttonStyle(.bordered)
+            VStack(alignment: .trailing, spacing: 6) {
+                // Accessibility gets an extra route. Its API can only report
+                // trusted / not-trusted — it cannot say whether the user was
+                // ever asked — so this row shows `.denied` even on a first
+                // run. More importantly, a stale entry in System Settings
+                // (left behind when a rebuild changes the app's signature)
+                // can refuse to switch on at all. Apple's own prompt
+                // re-registers the current build, which fixes that where
+                // toggling by hand does not.
+                if permission == .accessibility {
+                    Button("Request Access", action: onRequest)
+                        .buttonStyle(.borderedProminent)
+                }
+
+                Button("Open Settings", action: onOpenSettings)
+                    .buttonStyle(.bordered)
+            }
         }
     }
 }

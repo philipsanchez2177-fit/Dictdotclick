@@ -215,6 +215,23 @@ Mac"** checklist that persists until Philip confirms each item.
 **Liquid Glass requires macOS 26 (Tahoe).** Confirmed 2026-08-19: Philip's Mac runs macOS 26, so
 full Liquid Glass is available and no `.ultraThinMaterial` fallback path needs building.
 
+### Accessibility resets on every rebuild unless signing is stable
+
+macOS ties an Accessibility grant to the app's **code signature**. Xcode's default for a project with
+no development team is "Sign to Run Locally" — an ad-hoc signature regenerated on every build. Each
+⌘R therefore produces an app macOS has never seen, the existing entry in System Settings points at a
+build that no longer exists, and the hotkey silently stops working. Toggling the stale entry by hand
+often refuses to stick.
+
+**Fix: set a development team** (a free Apple ID works) so the app is signed with a stable
+`Apple Development` identity and the grant survives rebuilds. Xcode → project → target → Signing &
+Capabilities → Team. Not committed to the repo — signing identity is per-machine.
+
+**Recovering a stale entry:** select Dictdotclick in System Settings → Privacy & Security →
+Accessibility, click **−** to remove it, then use **Request Access** in the app's permissions window.
+That calls `AXIsProcessTrustedWithOptions` with the prompt option, which re-registers the *current*
+build. Toggling the old entry does not.
+
 **Accessibility permission is mandatory** for both the global hotkey and auto-typing. There is no
 way around it; Apple gates synthetic keystrokes deliberately. Phase 2 exists to make that a smooth
 one-time step.
