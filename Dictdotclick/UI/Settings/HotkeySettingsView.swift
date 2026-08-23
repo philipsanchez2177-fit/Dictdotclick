@@ -22,6 +22,13 @@ struct HotkeySettingsView: View {
                     permissionWarning
                 }
 
+                if let issue = dictation.lastIssue {
+                    Label(issue, systemImage: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 section("Dictation key") {
                     HotkeyRecorderField(binding: dictation.binding) { newBinding in
                         dictation.setBinding(newBinding)
@@ -72,6 +79,15 @@ struct HotkeySettingsView: View {
                      : "Press \(dictation.binding.displayString) anywhere to start — you don't need this window open.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                // Phase 4 discards the audio, so this is the only evidence
+                // that the microphone actually collected anything.
+                if !dictation.isListening, dictation.capturedSecondsLastRun > 0 {
+                    Text(String(format: "Last capture: %.1f seconds of audio (discarded until Phase 5).",
+                                dictation.capturedSecondsLastRun))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             Spacer(minLength: 0)

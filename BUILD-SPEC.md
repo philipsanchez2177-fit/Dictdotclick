@@ -219,7 +219,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | **Done** — builds, runs, verified 2026-08-19 |
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
-| 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | Not started |
+| 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Written, not yet compiled** |
 | 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |

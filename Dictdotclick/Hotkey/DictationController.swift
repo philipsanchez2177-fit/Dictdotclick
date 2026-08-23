@@ -4,14 +4,19 @@
 //
 //  Phase 3 — the on/off switch the hotkey flips, and the thing that owns it.
 //
-//  Right now "dictation" means a boolean and nothing else. That is the whole
-//  point of sequencing the hotkey before the microphone: if the indicator
-//  toggles reliably from inside any app, the hardest part of the input path is
-//  proven, and Phase 4 can add audio to a switch already known to work.
+//  Phase 3 made this a boolean and nothing else. Phase 4 hangs the microphone
+//  and the floating pill off that same switch — the sequencing worked exactly
+//  as intended, because the toggle was already known to be reliable before
+//  anything depended on it.
+//
+//  Phase 4 still throws the audio away on stop. Keeping the capture and the
+//  transcriber separate means a Phase 5 failure is unambiguous: if the
+//  waveform moves, the microphone is fine and the problem is Whisper.
 //
 
 import Foundation
 import Observation
+import AVFoundation
 
 @Observable
 final class DictationController {
@@ -34,6 +39,11 @@ final class DictationController {
             HotkeySettings(binding: binding).save()
         }
     }
+
+    /// Why the last attempt to start dictation failed, if it did. Shown in
+    /// the UI rather than logged — a hotkey that silently does nothing is the
+    /// worst possible failure for this app.
+    private(set) var lastIssue: String?
 
     /// Set when the event tap could not be created. The only realistic cause
     /// is missing Accessibility permission, so the UI uses it to point at the
@@ -65,6 +75,7 @@ final class DictationController {
     }
 
     func stopMonitoring() {
+        stopListening()
         monitor?.stop()
         monitor = nil
     }
@@ -72,15 +83,47 @@ final class DictationController {
     // MARK: - State
 
     func toggle() {
-        isListening.toggle()
+        isListening ? stopListening() : startListening()
     }
 
-    /// Used when dictation must end for a reason other than the hotkey —
-    /// permission revoked, app quitting.
+    private func startListening() {
+        guard !isListening else { return }
+        lastIssue = nil
+
+        // Check before starting the engine. AVAudioEngine's failure when
+        // permission is missing is an opaque OSStatus; this produces a
+        // sentence the user can act on instead.
+        guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
+            lastIssue = "Microphone access is off. Open Permissions to turn it on."
+            return
+        }
+
+        guard AudioCapture.shared.start() else {
+            lastIssue = AudioCapture.shared.lastError ?? "Could not start the microphone."
+            return
+        }
+
+        isListening = true
+        RecordingHUD.shared.show()
+    }
+
+    /// Ends dictation. Also the path used when something other than the
+    /// hotkey has to stop it — permission revoked, app quitting.
     func stopListening() {
         guard isListening else { return }
         isListening = false
+        RecordingHUD.shared.hide()
+
+        // Phase 4 discards the audio. Phase 5 passes it to Whisper instead;
+        // this is the single line that changes.
+        let samples = AudioCapture.shared.stop()
+        let seconds = Double(samples.count) / AudioCapture.targetSampleRate
+        capturedSecondsLastRun = seconds
     }
+
+    /// Length of the most recent capture. The only evidence in Phase 4 that
+    /// audio was really collected, since the samples themselves are dropped.
+    private(set) var capturedSecondsLastRun: Double = 0
 
     func setBinding(_ newBinding: HotkeyBinding) {
         binding = newBinding
