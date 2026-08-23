@@ -43,7 +43,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     /// One line under the window title, so each pane says what it is for.
     var subtitle: String {
         switch self {
-        case .general:    return "Startup, cleanup, and how text is delivered."
+        case .general:    return "Your last transcript, and which engine produced it."
         case .hotkey:     return "Choose the key that starts and stops dictation."
         case .dictionary: return "Vocabulary hints and spoken-phrase snippets."
         case .history:    return "Past transcripts, stored only on this Mac."

@@ -58,6 +58,25 @@ final class DictationController {
         binding = HotkeySettings.load().binding
     }
 
+    /// Warms the speech engine — permission, and the language model download
+    /// if it hasn't happened. Called at launch so the first dictation isn't
+    /// the thing that triggers a multi-hundred-megabyte download.
+    func prepareTranscriber() {
+        Task { [transcriber] in
+            do {
+                try await transcriber.prepare()
+            } catch {
+                await MainActor.run { self.lastIssue = error.localizedDescription }
+            }
+        }
+    }
+
+    /// Which engine is in use, for display. Deliberately visible in the UI:
+    /// the whole reason transcription sits behind a protocol is that it may
+    /// change, and a transcript should never be anonymous about its source.
+    var transcriberName: String { transcriber.displayName }
+    var transcriberSupportsHints: Bool { transcriber.supportsVocabularyHints }
+
     // MARK: - Lifecycle
 
     /// Starts listening for the hotkey. Safe to call repeatedly — used both at
@@ -114,16 +133,54 @@ final class DictationController {
         isListening = false
         RecordingHUD.shared.hide()
 
-        // Phase 4 discards the audio. Phase 5 passes it to Whisper instead;
-        // this is the single line that changes.
         let samples = AudioCapture.shared.stop()
-        let seconds = Double(samples.count) / AudioCapture.targetSampleRate
-        capturedSecondsLastRun = seconds
+        capturedSecondsLastRun = Double(samples.count) / AudioCapture.targetSampleRate
+        transcribe(samples)
     }
 
-    /// Length of the most recent capture. The only evidence in Phase 4 that
-    /// audio was really collected, since the samples themselves are dropped.
+    /// Length of the most recent capture.
     private(set) var capturedSecondsLastRun: Double = 0
+
+    // MARK: - Transcription (Phase 5)
+
+    /// The engine. Held behind the protocol so swapping it is one line.
+    @ObservationIgnored private let transcriber: Transcriber = AppleTranscriber()
+
+    /// True while the transcriber is working. The pill stays up during this,
+    /// because from the user's side dictation isn't finished until words
+    /// appear.
+    private(set) var isTranscribing = false
+
+    /// Result of the most recent dictation. Phase 5 displays it; Phase 6
+    /// types it into the focused app instead.
+    private(set) var lastTranscript: String = ""
+
+    private func transcribe(_ samples: [Float]) {
+        guard !samples.isEmpty else { return }
+        isTranscribing = true
+
+        Task { [transcriber] in
+            do {
+                let text = try await transcriber.transcribe(
+                    samples: samples,
+                    sampleRate: AudioCapture.targetSampleRate,
+                    hints: []          // Phase 7 supplies the dictionary
+                )
+                await MainActor.run {
+                    self.lastTranscript = text
+                    self.isTranscribing = false
+                    if text.isEmpty {
+                        self.lastIssue = "Nothing was recognised in that recording."
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.isTranscribing = false
+                    self.lastIssue = error.localizedDescription
+                }
+            }
+        }
+    }
 
     func setBinding(_ newBinding: HotkeyBinding) {
         binding = newBinding

@@ -256,6 +256,7 @@
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Dictdotclick uses the microphone to transcribe your speech into text. Audio never leaves this Mac.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Dictdotclick uses on-device speech recognition to turn what you say into text. Audio never leaves this Mac.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.philipsanchez.Dictdotclick;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -279,6 +280,7 @@
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Dictdotclick uses the microphone to transcribe your speech into text. Audio never leaves this Mac.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Dictdotclick uses on-device speech recognition to turn what you say into text. Audio never leaves this Mac.";
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.philipsanchez.Dictdotclick;
 				PRODUCT_NAME = "$(TARGET_NAME)";

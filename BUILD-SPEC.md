@@ -129,6 +129,24 @@ The default in code remains the double-tap of `` ` ``. Philip's own setting, per
 event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
 a future session doesn't treat lost window-cycling as a bug.
 
+### Transcription sits behind a protocol, and why
+
+Decision 1 says on-device, nothing leaves the Mac. It never named an engine — whisper.cpp was a
+stack choice, and on 2026-08-20 it was replaced by macOS 26's built-in `SpeechAnalyzer`. The
+principle is unchanged; only the engine moved.
+
+Why: no ~460 MB model to download or gitignore, no C++ dependency that could fail to build, far less
+code, and it is already on the machine.
+
+**The open risk is vocabulary hints.** Decision 4 needs a way to bias recognition toward rare words,
+which whisper.cpp does with an initial prompt and `SFSpeechRecognizer` does with `contextualStrings`.
+Whether `SpeechAnalyzer` exposes an equivalent is **unverified**, so `AppleTranscriber` reports
+`supportsVocabularyHints = false` and the UI says so plainly rather than implying a feature works.
+
+Everything engine-specific is confined to `AppleTranscriber.swift` behind the `Transcriber`
+protocol. If Phase 7 finds hints unworkable, a whisper.cpp implementation replaces that one file.
+Flipping `supportsVocabularyHints` to true requires evidence, not optimism.
+
 ### The recording pill must never take focus
 
 Verified in Phase 4: with the pill on screen the cursor stays in the app being dictated into, and
@@ -214,13 +232,13 @@ Nothing here is implemented yet. Recorded so the choice and its reasoning surviv
 | HUD pill | `NSPanel` (`.nonactivatingPanel`, `.floating`) | Floats above all apps including fullscreen without stealing keyboard focus. A normal window cannot do this. |
 | Global hotkey | `CGEvent` tap | Hears the hotkey app-wide. Needs Accessibility permission — same one auto-typing needs, so no extra user setup. |
 | Mic capture | `AVAudioEngine` | 16 kHz mono PCM (Whisper's format) plus live amplitude for the waveform. |
-| Transcription | `whisper.cpp` Swift package | Whisper compiled for Apple Silicon with Metal acceleration. Offline, free. |
+| Transcription | **macOS 26 `SpeechAnalyzer`**, behind a `Transcriber` protocol | On-device, no model for this app to ship or download, no C++ dependency. Swapped in over whisper.cpp on 2026-08-20 — see below. |
 | Auto-typing | `CGEvent` keyboard posting | Synthesizes keystrokes into the focused app. |
 | Clipboard | `NSPasteboard` | Fallback delivery path. |
 | Storage | JSON in `~/Library/Application Support/Dictdotclick/` | Settings, dictionary, snippets, history. Human-readable and debuggable; no database needed at this scale. |
 
-**Model:** start with Whisper `small.en` (~460 MB) — best speed/accuracy balance for English
-dictation. Downloaded on first run, not committed to git.
+**Model:** none shipped. macOS manages the speech model; the app requests installation through
+`AssetInventory` on first launch.
 
 ---
 
@@ -235,7 +253,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
-| 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
+| 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Written, not yet compiled** |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |

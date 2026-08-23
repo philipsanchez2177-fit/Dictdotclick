@@ -46,6 +46,13 @@ What *is* achievable, if it earns a slot later:
 - Treat "the app never saw the keystroke" as evidence of a conflict: if the recorder times out
   waiting for a key the user says they pressed, something upstream swallowed it.
 
+## Unverified, needs evidence
+
+| Item | Why it matters | When |
+|---|---|---|
+| **Does `SpeechAnalyzer` support vocabulary hints?** | Decision 4 — teaching the app rare words — depends on biasing recognition. whisper.cpp does it with an initial prompt; `SFSpeechRecognizer` with `contextualStrings`. Unknown for `SpeechAnalyzer`. `AppleTranscriber` reports `supportsVocabularyHints = false` until proven. | Phase 7 |
+| **Fallbacks if not** | In order: an equivalent option on `SpeechAnalyzer`; `SFSpeechRecognizer` with `contextualStrings` (older, ~1-minute limit, but the hint mechanism is documented); whisper.cpp. All three implement the same `Transcriber` protocol, so the change is one file. | Phase 7 |
+
 ## Deferred by decision
 
 Considered during the 2026-08-18 interview, deliberately postponed. Not forgotten, not rejected.
