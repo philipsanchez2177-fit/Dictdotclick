@@ -19,6 +19,9 @@ import AppKit  // for NSApplication
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         DictationController.shared.startMonitoring()
+        // Warm the speech engine now rather than on the first dictation,
+        // which would otherwise stall behind a model download.
+        DictationController.shared.prepareTranscriber()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
