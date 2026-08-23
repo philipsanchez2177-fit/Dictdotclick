@@ -147,6 +147,20 @@ Everything engine-specific is confined to `AppleTranscriber.swift` behind the `T
 protocol. If Phase 7 finds hints unworkable, a whisper.cpp implementation replaces that one file.
 Flipping `supportsVocabularyHints` to true requires evidence, not optimism.
 
+**The swap is validated.** First transcript, 2026-08-22, from 8.9 seconds of speech:
+*"I am testing this dictation app. Today is Saturday, August 22nd at 9:03 PM."* Punctuation,
+capitalisation, ordinal and clock formatting all correct with no post-processing. No model download
+was needed. Two build errors, both wrong symbol names in that one file, nothing else touched — which
+is exactly the containment the protocol was for.
+
+**Read the SDK, don't guess twice.** Both errors were fixed by grepping the framework's own
+`.swiftinterface` on the Mac rather than guessing a second time:
+
+    grep -rh --include="*.swiftinterface" -E "PATTERN" "$(xcrun --show-sdk-path)/System/Library/Frameworks/NAME.framework"
+
+That is the tool to reach for whenever a new framework's symbol names are in doubt — it turns a
+guessing loop into one lookup.
+
 ### The recording pill must never take focus
 
 Verified in Phase 4: with the pill on screen the cursor stays in the app being dictated into, and
@@ -253,7 +267,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
-| 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Written, not yet compiled** |
+| 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
