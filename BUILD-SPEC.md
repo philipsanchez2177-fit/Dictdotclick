@@ -129,6 +129,21 @@ The default in code remains the double-tap of `` ` ``. Philip's own setting, per
 event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
 a future session doesn't treat lost window-cycling as a bug.
 
+### The recording pill must never take focus
+
+Verified in Phase 4: with the pill on screen the cursor stays in the app being dictated into, and
+typing continues normally. That comes from three settings on `RecordingPillPanel`, none of which are
+optional:
+
+| Setting | Without it |
+|---|---|
+| `.nonactivatingPanel` + `canBecomeKey = false` | Clicking the pill makes Dictdotclick the active app and typing goes nowhere useful. |
+| `hidesOnDeactivate = false` | The pill vanishes the instant the user clicks back into their real work — a menu-bar app is never "active". |
+| `.fullScreenAuxiliary` | The pill cannot appear over a full-screen app, which is where dictation is most wanted. |
+
+A SwiftUI `Window` can do none of this. Any future floating UI copies this panel, it does not start
+from `Window`.
+
 ### Function keys are not a reliable escape hatch
 
 Decision 6 offers three shapes, and function keys were meant to be the one with no tradeoff — no
@@ -219,7 +234,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 1 | `MenuBarExtra` + Settings window with Liquid Glass and sidebar tabs. Skeleton only. | **Done** — builds, runs, verified 2026-08-19 |
 | 2 | Permissions walkthrough — Microphone + Accessibility, with live status and a Settings deep link. Built early; it's where users get stuck. | **Done** — fully verified 2026-08-19, including the system prompt, the System Settings deep link, and live polling. |
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
-| 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Written, not yet compiled** |
+| 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | whisper.cpp integrated, model downloader, transcript shown in a debug panel. **First phase where the app does its real job.** | Not started |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
