@@ -1,102 +1,89 @@
-# SESSION HANDOFF — 2026-08-20-a
+# SESSION HANDOFF — 2026-08-22-a
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.
-Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-19-b.md`.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-20-a.md`.
 
 ## What happened this session
 
-**Phases 2 and 3 both shipped and are fully verified on the Mac.** The app now responds to the user
-for the first time: pressing the bound hotkey from inside any app toggles its listening state.
+**Phases 4 and 5 shipped and are verified. The app does its core job:** press the hotkey, talk, press
+again, and the transcript appears in Settings → General. Typing it into the focused app is Phase 6.
 
-**Phase 2 — permissions walkthrough.** Its own window rather than a Settings tab, because it is a
-task with an end state rather than preferences to browse. Reads Microphone (AVFoundation) and
-Accessibility (`AXIsProcessTrusted`), offers the system prompt where one exists, and deep-links to
-the right System Settings pane. Polls once a second while open and stops on close — macOS sends no
-notification when a permission changes, so without polling the window keeps showing a red dot after
-the user has already granted access.
+**Phase 4 — microphone and the pill.** `AVAudioEngine` capture converted to 16 kHz mono float on the
+way in, so Phase 5 received exactly the format it wanted and the conversion was proven before
+anything depended on it. The floating pill is an `NSPanel`, not a SwiftUI `Window` — confirmed on the
+Mac that it never takes focus and typing continues underneath it. Waveform tracks the voice, timer
+counts, dragged position persists.
 
-Every path was exercised, including the ungranted ones. Apple's undocumented
-`x-apple.systempreferences:...PrivacySecurity.extension?Privacy_*` deep links land correctly on
-macOS 26.
+**Phase 5 — transcription, and the engine changed.** Philip asked whether macOS already had
+speech-to-text built in. It does: macOS 26's `SpeechAnalyzer`. Adopted over whisper.cpp, which
+deleted the largest remaining risks — a ~460 MB model download, a C++ dependency that could fail to
+build, and a binary that must never reach git. Decision 1 ("on-device, nothing leaves the Mac") is
+untouched; it never named an engine, so this was a stack change.
 
-**Phase 3 — the global hotkey.** A `CGEvent` tap watching for one binding, swallowing it on a match
-and passing everything else through. Recorder UI enforcing decision 6, rejections explained inline,
-binding persisted to `hotkey.json` through a new `JSONStore`. An `AppDelegate` was added purely to
-start the monitor at launch: every scene in this app is `.defaultLaunchBehavior(.suppressed)`, so no
-Scene `.task` runs until a window opens, and a hotkey that only works after visiting Settings is not
-a hotkey.
+First transcript, from 8.9 seconds: *"I am testing this dictation app. Today is Saturday, August 22nd
+at 9:03 PM."* Punctuation, capitalisation, ordinal and clock formatting all correct, no
+post-processing, no download.
 
-**The session's real cost was a permission that would not stick.** The tap did nothing on first run.
-System Settings showed Dictdotclick switched **on** while `AXIsProcessTrusted()` returned false —
-both true at once. macOS ties the grant to the app's *code signature*, and with **Team: None** Xcode
-signs each build "to run locally" with an ad-hoc identity regenerated every time. Every ⌘R produced
-an app macOS had never seen; the list entry pointed at a build that no longer existed.
+**Transcription now sits behind a `Transcriber` protocol**, because one requirement is unproven
+against this engine: decision 4's vocabulary hints. `AppleTranscriber` reports
+`supportsVocabularyHints = false` — unproven, not disproven — and the UI says so in plain text rather
+than implying the feature works.
 
-Fixed durably by setting a development team (free Apple ID), which produces a stable
-`Apple Development` signature. Without it this would have recurred on every build for the remaining
-six phases.
+**Two build errors, both in that one file**, both wrong symbol names. Fixed by grepping the SDK's own
+`.swiftinterface` rather than guessing twice. That technique is now in `BUILD-SPEC.md`.
 
-**A decision reversed.** The double-tap was planned as "let the first press through, delete both
-characters if a second arrives" — no latency. Writing it made the cost concrete: it means
-synthesising Delete into whatever window is focused, which in a spreadsheet clears a cell, silently.
-Reversed to holding the first press ~200 ms and replaying it if no second comes. Confirmed on the Mac
-that a single backtick still types normally.
-
-**Two things the plan had wrong about the world**, both now recorded:
-- **Function keys are unusable on this Mac** — Logitech software claims the F row. One of decision
-  6's three allowed shapes is not available to Philip.
-- **Conflict detection was cut from Phase 3** without being flagged, and the phase table was edited
-  to match. Surfaced when recording ⌃⌥D resized a window — Magnet had claimed it and consumed the
-  keystroke before the recorder saw it. Now in `DEFERRED.md` with what is achievable.
+**The evening's real cost was git, not code.** A markdown code fence pasted into Terminal left zsh at
+a `bquote>` prompt that swallowed a `git pull`; the next build was Phase 4 unchanged, reported as
+"Phase 5 looks no different." The handoff's own rule caught it — confirm the code is on the Mac
+before re-diagnosing — at the cost of one round instead of several.
 
 ## Needs verifying on the Mac
 
 **Nothing outstanding.** No uncompiled Swift exists in the repo.
 
-Confirmed 2026-08-20:
+Confirmed 2026-08-22:
 
-- [x] Permissions window: reads both permissions, renders, and every path works — the system prompt,
-      the System Settings deep link, and the polling that turns a badge green with no interaction in
-      the app.
-- [x] `CGEvent` tap toggles listening state from inside another app; the menu bar icon reflects it.
-- [x] A single backtick still types normally, so the hold-and-replay does not eat a key.
-- [x] Recorder accepts valid bindings and refuses bare character keys with the reason shown inline.
-- [x] Binding survives quit and relaunch via `hotkey.json`, confirming `JSONStore` works.
-- [x] A stable `Apple Development` signature keeps the Accessibility grant across rebuilds.
+- [x] Pill appears on the hotkey, waveform tracks the voice, timer counts up.
+- [x] Clicking the pill does not steal focus; typing continues in the app underneath.
+- [x] A dragged pill returns to the same place on the next dictation.
+- [x] Speech is transcribed correctly, on-device, with punctuation and no model download.
+- [x] `AppleTranscriber` builds against the real macOS 26 Speech API.
+
+Not explicitly checked, low risk: that the pill floats above a full-screen app.
 
 ## Gotchas / things to watch for
 
-- **Team must stay set in Signing & Capabilities.** If it ever reverts to None, the app signs
-  ad-hoc again and Accessibility silently stops applying after the next build. That symptom —
-  System Settings says on, the app says off — means signing, not code.
-- **Recovering a stale Accessibility entry:** select Dictdotclick in System Settings → Privacy &
-  Security → Accessibility, click **−** to remove it, then use **Request Access** in the app.
-  Toggling the old entry does not work; it re-approves a build that no longer exists.
-- **Philip's binding is ⌘\` , not the shipped default** (double-tap backtick). ⌘\` is macOS's
-  "cycle windows within app" shortcut, so binding it likely shadows that. Accepted knowingly — not a
-  bug.
-- **Nothing non-source goes inside `Dictdotclick/`,** and no same-named files at any depth. The
-  synchronized folder compiles or copies everything it finds.
-- **Six compile errors often means one real problem.** `HotkeyRejection` missing `Error` conformance
-  produced six; five were cascade. Start at the top of Xcode's list.
-- Earlier gotchas that still hold: never `git rev-parse --show-toplevel` in a fresh Terminal; never
-  launch the built `.app` directly; always Replace at Xcode's Replace/Add prompt; don't use
-  `NavigationSplitView` for fixed panes.
+- **Never paste a fenced code block into Terminal.** The ``` marks are formatting, not command. zsh
+  reads the backticks as command substitution, drops to `bquote>`, and eats whatever follows —
+  including the `git pull` you thought you ran. Copy only the command line itself.
+- **Read the SDK instead of guessing a symbol name twice.** One `grep` over the framework's
+  `.swiftinterface` in `$(xcrun --show-sdk-path)` gives ground truth. Full command in `BUILD-SPEC.md`.
+- **`pull.rebase false` and `core.editor nano` are now set** on Philip's clone. Before that, a pull
+  with divergent branches refused outright, and the merge that followed dropped him into vim with no
+  way out. If a future session sees either symptom, the config was lost.
+- **Xcode writes `DEVELOPMENT_TEAM` into `project.pbxproj`.** It is now committed, so
+  `BUILD-SPEC.md`'s earlier claim that signing stays out of the repo is no longer true — see below.
+- Earlier gotchas still hold: Team must stay set or Accessibility silently stops applying; nothing
+  non-source inside `Dictdotclick/`; six compile errors often means one real problem.
 
 ## Anything to know before continuing
 
 - **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
 - **Working tree:** clean.
-- **Next step: Phase 4** — `AVAudioEngine` capture plus the floating Liquid Glass pill with a live
-  waveform and timer. Audio is captured and discarded, deliberately: it proves microphone and visuals
-  work independently, so when Phase 5 adds Whisper a failure is unambiguous. The pill is an
-  `NSPanel` (`.nonactivatingPanel`, `.floating`), not a `Window` — it must float above fullscreen
-  apps without taking keyboard focus. `.glassEffect` is already proven.
-- **`BUILD-SPEC.md` and `DEFERRED.md` were both updated this session** and are current, not stale.
-  BUILD-SPEC gained four sections: the signing trap, the F-row finding, the double-tap
-  implementation decision, and Philip's actual binding.
-- **No open questions.** The default-hotkey question is answered and closed.
-- **`SWIFT_VERSION` is still 5.0.** Untouched, still not worth revisiting.
+- **Next step: Phase 6** — auto-type into the focused app plus a clipboard copy (decision 2). Short
+  phase: Accessibility is already granted and is the same permission that allows synthetic
+  keystrokes. Needs a fallback toast for contexts that refuse them — password fields, some VMs.
+  After Phase 6 the core loop is complete and everything remaining is refinement.
+- **One doc inconsistency to resolve, flagged not fixed.** `BUILD-SPEC.md` says the signing identity
+  is per-machine and not committed. Xcode has since written `DEVELOPMENT_TEAM` into
+  `project.pbxproj` and it is committed and pushed. Harmless — a Team ID is not a secret — but the
+  document and the repo disagree. Either update the wording or gitignore the setting; pick one early
+  in the next session rather than letting it drift.
+- **`BUILD-SPEC.md` and `DEFERRED.md` are current.** BUILD-SPEC gained the engine-swap rationale, the
+  focus rules for the pill, and the read-the-SDK technique. DEFERRED gained the vocabulary-hints
+  question with its fallback order, and `DictationTranscriber` as an alternative worth testing.
+- **Open question for Phase 7:** does `SpeechAnalyzer` support vocabulary hints? Everything about
+  decision 4 depends on the answer.
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.

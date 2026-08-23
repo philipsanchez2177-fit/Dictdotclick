@@ -275,3 +275,67 @@ upstream ate the key.
 
 Writing the cut down was the point. A quietly narrowed scope is worse than an unbuilt feature,
 because nobody knows to miss it.
+
+---
+
+## 2026-08-22 — Deleting the hardest phase before building it
+
+Phase 5 was supposed to be the heavy one: integrate whisper.cpp, ship a model downloader, keep a
+460 MB file out of git, and take on the project's first external dependency. It ended up being one
+of the smaller phases, because of a question asked before any of it was written.
+
+Philip asked whether macOS already had speech-to-text built in.
+
+It does. macOS 26 ships `SpeechAnalyzer`, an on-device engine with models the OS manages. Against
+whisper.cpp it wins on nearly every axis that mattered here: no download, no C++ interop, no Swift
+package that could fail to build, no large binary to gitignore, and far less code. Privacy was the
+reason whisper.cpp was chosen in the first place, and that survives intact — both run locally, and
+the locked decision said "on-device, nothing leaves the Mac" without naming an engine. Swapping was
+a stack change, not a change of principle, which is precisely why the distinction between the two
+was worth writing down back in the first session.
+
+One thing argued against it. A locked decision says the app must learn the user's vocabulary — rare
+words, names, jargon. whisper.cpp does that with an initial prompt; the older `SFSpeechRecognizer`
+does it with `contextualStrings`. Whether `SpeechAnalyzer` offers an equivalent was unknown, and
+guessing either way would have been dishonest.
+
+So transcription went in behind a protocol. `Transcriber` is a handful of lines: prepare, transcribe,
+a display name, and a flag saying whether vocabulary hints actually work. `AppleTranscriber` reports
+that flag as **false** — not because it is known to be false, but because it is unproven, and the
+Settings pane tells the user so in plain orange text rather than implying a feature works. If the
+gap turns out to be real, a whisper.cpp implementation replaces one file.
+
+The containment paid off immediately. The first build produced exactly two errors, both in that one
+file, both wrong symbol names against a framework new enough that recall was unreliable. The fix was
+not to guess again. The SDK on the machine ships Apple's own `.swiftinterface` for the framework, and
+a single `grep` printed the truth: `bestAvailableAudioFormat` is a static on `SpeechAnalyzer` rather
+than on the transcriber, and the preset is `.transcription`, not the invented `.offlineTranscription`.
+Two corrections, one file, no guessing loop. The same output incidentally revealed a sibling
+`DictationTranscriber` whose presets are named for this exact use case — noted for later, not adopted,
+on the grounds that one unknown per phase is enough.
+
+The first transcript, from 8.9 seconds of speech: *"I am testing this dictation app. Today is
+Saturday, August 22nd at 9:03 PM."* Punctuation, capitalisation, an ordinal and a clock time, all
+correct, with no post-processing and no model download.
+
+### The other half of the evening
+
+The code went in cleanly. Git did not.
+
+A markdown code fence was copied into Terminal along with the command inside it, and zsh — seeing an
+unmatched backtick — dropped into a `bquote>` prompt and swallowed the `git pull` whole. The build
+that followed was Phase 4, unchanged, and the report was that Phase 5 "looked no different." Which
+was true, and the reason was already written in the project's own handoff: *when a fix doesn't work,
+confirm it's actually on the Mac before re-diagnosing.* Thirty seconds of `git log --oneline -1`
+against several minutes of debugging code that was never there.
+
+Then the pull failed for a real reason: Xcode had written the development team into `project.pbxproj`
+when the signing problem was fixed the session before, and that change had never been committed. It
+was the single most valuable local change in the repo, so committing it and merging was the only
+acceptable move. The merge auto-resolved, opened vim for a commit message, and stranded a first-time
+developer in an editor that offers no hint about how to leave.
+
+None of that is interesting engineering. It is, though, the actual texture of building software with
+tooling you have not used before, and the fixes were process, not code: set `pull.rebase false` once,
+set the editor to nano, stop pasting fenced blocks. Worth recording precisely because a build journal
+that only shows the clean parts describes a project that never existed.
