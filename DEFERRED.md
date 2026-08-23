@@ -51,6 +51,7 @@ What *is* achievable, if it earns a slot later:
 | Item | Why it matters | When |
 |---|---|---|
 | **Does `SpeechAnalyzer` support vocabulary hints?** | Decision 4 — teaching the app rare words — depends on biasing recognition. whisper.cpp does it with an initial prompt; `SFSpeechRecognizer` with `contextualStrings`. Unknown for `SpeechAnalyzer`. `AppleTranscriber` reports `supportsVocabularyHints = false` until proven. | Phase 7 |
+| **`DictationTranscriber` as an alternative module** | The Speech framework also ships `DictationTranscriber`, whose presets are named for this exact use case — `.shortDictation`, `.longDictation`, `.progressiveLongDictation`. Possibly better tuned for dictation than the general `SpeechTranscriber`, and possibly different on vocabulary support. Not adopted in Phase 5: one unknown per phase. | Phase 7 |
 | **Fallbacks if not** | In order: an equivalent option on `SpeechAnalyzer`; `SFSpeechRecognizer` with `contextualStrings` (older, ~1-minute limit, but the hint mechanism is documented); whisper.cpp. All three implement the same `Transcriber` protocol, so the change is one file. | Phase 7 |
 
 ## Deferred by decision

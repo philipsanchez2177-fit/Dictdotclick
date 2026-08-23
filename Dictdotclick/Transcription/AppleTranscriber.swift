@@ -82,7 +82,10 @@ final class AppleTranscriber: Transcriber {
 
         // The engine names the format it wants rather than accepting ours,
         // so the recorded 16 kHz mono buffer is converted to match.
-        guard let analyzerFormat = await SpeechTranscriber.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+        // `bestAvailableAudioFormat` is a static on SpeechAnalyzer, not on
+        // the transcriber — it answers for a whole set of modules, since an
+        // analyzer can run several at once.
+        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
             throw TranscriptionError.engineFailed("no compatible audio format")
         }
 
@@ -120,8 +123,17 @@ final class AppleTranscriber: Transcriber {
 
     // MARK: - Helpers
 
+    /// `.transcription` is the plain preset: a final transcript, no interim
+    /// results, no alternates. Phase 8's live preview will want
+    /// `.progressiveTranscription` instead — that is the preset that emits
+    /// partial results as the audio arrives.
+    ///
+    /// The framework also offers `DictationTranscriber`, whose presets are
+    /// named for this exact use case (`.shortDictation`, `.longDictation`).
+    /// Not adopted yet: it is a second unknown, and one is enough per phase.
+    /// Recorded in `DEFERRED.md`.
     private func makeTranscriber() -> SpeechTranscriber {
-        SpeechTranscriber(locale: locale, preset: .offlineTranscription)
+        SpeechTranscriber(locale: locale, preset: .transcription)
     }
 
     private func requestAuthorization() async throws {
