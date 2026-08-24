@@ -145,9 +145,17 @@ could re-trigger its own hotkey while pasting — a transcript containing a back
 dictation again.
 
 **Failure is detected before it happens, not after.** `IsSecureEventInputEnabled()` reports when a
-password field has focus, which blocks synthetic keystrokes system-wide. Checking up front turns a
-silent no-op into a message that says press ⌘V. The clipboard copy always happens first and
-unconditionally: if anything downstream fails, the user still has their words.
+password field has focus. The clipboard copy always happens first and unconditionally: if anything
+downstream fails, the user still has their words.
+
+**Secure input blocks reading the keyboard, not just writing it — confirmed 2026-08-22.** While a
+password field has focus, a `CGEvent` tap receives no keystrokes at all, so the hotkey never reaches
+this app and **dictation cannot be started into a password field**. That is macOS behaving correctly
+and is arguably the feature working: the one place a dictation app should never reach, it cannot.
+
+So the secure-input branch in `TextDelivery` covers a narrower case than it first appears: secure
+input turning on *mid-dictation* — start in a document, click into a password field, then press the
+hotkey to stop. Worth keeping, and worth knowing it is not reachable by starting there.
 
 **No toast on success.** The words appearing where the user was typing is the feedback; a
 confirmation over their real work would be clutter. Toasts appear only when delivery fell back to
@@ -298,7 +306,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
-| 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Written, not yet compiled** |
+| 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
