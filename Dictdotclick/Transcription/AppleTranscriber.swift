@@ -29,10 +29,16 @@ import AVFoundation
 final class AppleTranscriber: Transcriber {
     let displayName = "macOS built-in (SpeechAnalyzer)"
 
-    /// Unverified against this engine. Left false so the UI tells the truth
-    /// instead of promising a feature that may not be working — flipping it
-    /// requires evidence, not optimism. See `DEFERRED.md`.
-    let supportsVocabularyHints = false
+    /// Confirmed 2026-08-22 by reading the framework's own interface:
+    /// `AnalysisContext.contextualStrings` takes a list of words that bias
+    /// recognition, and `SpeechAnalyzer.setContext` applies it. That is the
+    /// mechanism decision 4 needs, so the earlier `false` no longer tells the
+    /// truth.
+    ///
+    /// This says the hints are *passed to the engine*, which is now true.
+    /// Whether they measurably improve recognition of a rare word is a Phase 7
+    /// test with real vocabulary.
+    let supportsVocabularyHints = true
 
     private let locale: Locale
 
@@ -79,6 +85,20 @@ final class AppleTranscriber: Transcriber {
 
         let transcriber = makeTranscriber()
         let analyzer = SpeechAnalyzer(modules: [transcriber])
+
+        // Vocabulary hints. `.general` is the untagged bucket — tags exist so
+        // different sets can be swapped independently later (say, per-app
+        // jargon), which is not needed yet.
+        //
+        // Only the lightweight path is used. The framework also offers
+        // `SFCustomLanguageModelData`, with custom pronunciations and phrase
+        // weighting; that is a bigger hammer than a word list and is recorded
+        // in DEFERRED rather than reached for now.
+        if !hints.isEmpty {
+            let context = AnalysisContext()
+            context.contextualStrings = [.general: hints]
+            try await analyzer.setContext(context)
+        }
 
         // The engine names the format it wants rather than accepting ours,
         // so the recorded 16 kHz mono buffer is converted to match.

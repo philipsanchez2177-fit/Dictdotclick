@@ -138,10 +138,16 @@ principle is unchanged; only the engine moved.
 Why: no ~460 MB model to download or gitignore, no C++ dependency that could fail to build, far less
 code, and it is already on the machine.
 
-**The open risk is vocabulary hints.** Decision 4 needs a way to bias recognition toward rare words,
-which whisper.cpp does with an initial prompt and `SFSpeechRecognizer` does with `contextualStrings`.
-Whether `SpeechAnalyzer` exposes an equivalent is **unverified**, so `AppleTranscriber` reports
-`supportsVocabularyHints = false` and the UI says so plainly rather than implying a feature works.
+**Vocabulary hints are supported — resolved 2026-08-22.** This was the one open risk in the swap.
+`AnalysisContext.contextualStrings` accepts a list of words that bias recognition, applied through
+`SpeechAnalyzer.setContext`. Decision 4 stands and whisper.cpp stays retired.
+
+The framework goes further than whisper.cpp did: `SFCustomLanguageModelData` supports custom
+pronunciations and phrase weighting. Not used — a word list is far simpler to build a dictionary UI
+around, and it is only worth reaching for if plain hints prove too weak. See `DEFERRED.md`.
+
+Still unmeasured: whether the hints *noticeably* improve a rare word. The plumbing is in; Phase 7
+tests it with real vocabulary.
 
 Everything engine-specific is confined to `AppleTranscriber.swift` behind the `Transcriber`
 protocol. If Phase 7 finds hints unworkable, a whisper.cpp implementation replaces that one file.

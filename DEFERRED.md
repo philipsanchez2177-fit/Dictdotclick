@@ -46,13 +46,21 @@ What *is* achievable, if it earns a slot later:
 - Treat "the app never saw the keystroke" as evidence of a conflict: if the recorder times out
   waiting for a key the user says they pressed, something upstream swallowed it.
 
-## Unverified, needs evidence
+## Answered by reading the SDK
 
-| Item | Why it matters | When |
+| Question | Answer | Date |
 |---|---|---|
-| **Does `SpeechAnalyzer` support vocabulary hints?** | Decision 4 — teaching the app rare words — depends on biasing recognition. whisper.cpp does it with an initial prompt; `SFSpeechRecognizer` with `contextualStrings`. Unknown for `SpeechAnalyzer`. `AppleTranscriber` reports `supportsVocabularyHints = false` until proven. | Phase 7 |
-| **`DictationTranscriber` as an alternative module** | The Speech framework also ships `DictationTranscriber`, whose presets are named for this exact use case — `.shortDictation`, `.longDictation`, `.progressiveLongDictation`. Possibly better tuned for dictation than the general `SpeechTranscriber`, and possibly different on vocabulary support. Not adopted in Phase 5: one unknown per phase. | Phase 7 |
-| **Fallbacks if not** | In order: an equivalent option on `SpeechAnalyzer`; `SFSpeechRecognizer` with `contextualStrings` (older, ~1-minute limit, but the hint mechanism is documented); whisper.cpp. All three implement the same `Transcriber` protocol, so the change is one file. | Phase 7 |
+| Does `SpeechAnalyzer` support vocabulary hints? | **Yes.** `AnalysisContext.contextualStrings` takes `[ContextualStringsTag: [String]]`, applied via `SpeechAnalyzer.setContext`. Wired into `AppleTranscriber`; Phase 7 supplies the dictionary. Decision 4 stands and whisper.cpp stays retired. | 2026-08-22 |
+
+Still to test with real vocabulary in Phase 7: whether the hints *measurably* improve recognition of
+a rare word. The API is wired; its effect is unmeasured.
+
+## Worth reaching for later
+
+| Item | Why | When |
+|---|---|---|
+| **`SFCustomLanguageModelData`** | A heavier alternative to a word list: custom pronunciations (`CustomPronunciation`), phrase weighting (`PhraseCount`), and templates. Stronger than whisper.cpp's initial prompt ever was. Only worth it if plain `contextualStrings` proves too weak — a word list is far simpler to build a UI around. | Phase 7+, only if needed |
+| **`DictationTranscriber`** | Sibling module whose presets are named for this use case — `.shortDictation`, `.longDictation`, `.progressiveLongDictation`. Possibly better tuned than the general `SpeechTranscriber`. | Phase 7 |
 
 ## Deferred by decision
 
