@@ -21,6 +21,13 @@ final class RecordingHUD {
     static let shared = RecordingHUD()
 
     private var panel: RecordingPillPanel?
+
+    /// Separate from the pill: a toast can outlive the recording it belongs
+    /// to, and reusing one panel for both would mean the message vanishing
+    /// the instant dictation ended.
+    private var toastPanel: RecordingPillPanel?
+    private var toastDismissal: DispatchWorkItem?
+
     private init() {}
 
     // MARK: - Visibility
@@ -45,6 +52,34 @@ final class RecordingHUD {
         let created = RecordingPillPanel(content: RecordingPillView())
         panel = created
         return created
+    }
+
+    // MARK: - Toast
+
+    /// Shows a short message where the pill sits, then removes it.
+    ///
+    /// Only called when delivery did *not* go to plan. A successful paste is
+    /// self-evident — the words appear where the user was typing — and a toast
+    /// on every success would be clutter over their real work.
+    func flash(_ message: String, systemImage: String, for duration: TimeInterval = 4) {
+        toastDismissal?.cancel()
+
+        let panel = toastPanel ?? RecordingPillPanel(
+            content: DeliveryToastView(message: message, systemImage: systemImage)
+        )
+        // Rebuild the content each time: the message changes, and a hosting
+        // view created with one string will not show a different one.
+        panel.contentView = NSHostingView(
+            rootView: DeliveryToastView(message: message, systemImage: systemImage)
+        )
+        toastPanel = panel
+
+        position(panel)
+        panel.orderFrontRegardless()
+
+        let dismissal = DispatchWorkItem { [weak panel] in panel?.orderOut(nil) }
+        toastDismissal = dismissal
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: dismissal)
     }
 
     // MARK: - Placement

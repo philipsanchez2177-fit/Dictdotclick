@@ -71,6 +71,23 @@ final class DictationController {
         }
     }
 
+    // MARK: - Delivery (Phase 6)
+
+    /// Puts the transcript where the user was working (decision 2).
+    ///
+    /// Silent on success — the words appearing is the feedback. A toast only
+    /// when delivery fell back to the clipboard, because that is the case
+    /// where the user has to do something and would otherwise think the app
+    /// lost their dictation.
+    private func deliver(_ text: String) {
+        let outcome = TextDelivery.deliver(text)
+        lastDelivery = outcome
+
+        if case .clipboardOnly(let reason) = outcome {
+            RecordingHUD.shared.flash(reason, systemImage: "doc.on.clipboard")
+        }
+    }
+
     /// Which engine is in use, for display. Deliberately visible in the UI:
     /// the whole reason transcription sits behind a protocol is that it may
     /// change, and a transcript should never be anonymous about its source.
@@ -151,9 +168,13 @@ final class DictationController {
     /// appear.
     private(set) var isTranscribing = false
 
-    /// Result of the most recent dictation. Phase 5 displays it; Phase 6
-    /// types it into the focused app instead.
+    /// Result of the most recent dictation. Shown in Settings as a record;
+    /// Phase 6 also delivers it to the focused app.
     private(set) var lastTranscript: String = ""
+
+    /// What happened to the last transcript — pasted, or clipboard only.
+    /// Kept so Settings can report it after the toast has gone.
+    private(set) var lastDelivery: DeliveryOutcome?
 
     private func transcribe(_ samples: [Float]) {
         guard !samples.isEmpty else { return }
@@ -171,6 +192,9 @@ final class DictationController {
                     self.isTranscribing = false
                     if text.isEmpty {
                         self.lastIssue = "Nothing was recognised in that recording."
+                        self.lastDelivery = nil
+                    } else {
+                        self.deliver(text)
                     }
                 }
             } catch {

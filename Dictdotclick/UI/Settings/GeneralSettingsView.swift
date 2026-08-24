@@ -26,7 +26,7 @@ struct GeneralSettingsView: View {
                 }
 
                 section("Coming later") {
-                    Text("Launch at login, text delivery, and the filler-word cleanup toggle arrive with the features they control — Phases 6 and 7.")
+                    Text("Launch at login and the filler-word cleanup toggle arrive with the features they control — Phase 7.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -57,14 +57,33 @@ struct GeneralSettingsView: View {
             }
 
             if dictation.capturedSecondsLastRun > 0 {
-                Text(String(format: "%.1f seconds of audio", dictation.capturedSecondsLastRun))
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 6) {
+                    Text(String(format: "%.1f seconds of audio", dictation.capturedSecondsLastRun))
+                    if let delivery = dictation.lastDelivery {
+                        Text("·")
+                        deliveryLabel(delivery)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
             }
         }
         .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
         .padding(16)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+
+    @ViewBuilder
+    private func deliveryLabel(_ outcome: DeliveryOutcome) -> some View {
+        switch outcome {
+        case .inserted:
+            Label("pasted into the focused app", systemImage: "checkmark")
+                .labelStyle(.titleAndIcon)
+        case .clipboardOnly:
+            Label("copied only — press ⌘V", systemImage: "doc.on.clipboard")
+                .labelStyle(.titleAndIcon)
+                .foregroundStyle(.orange)
+        }
     }
 
     private var engineCard: some View {

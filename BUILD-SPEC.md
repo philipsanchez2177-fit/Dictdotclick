@@ -129,6 +129,30 @@ The default in code remains the double-tap of `` ` ``. Philip's own setting, per
 event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
 a future session doesn't treat lost window-cycling as a bug.
 
+### Delivery pastes rather than types, and why
+
+Decision 2 says "type it into the focused app AND copy to the clipboard". Phase 6 implements the
+first half as **⌘V**, not as synthesised characters.
+
+Synthesising each character means hundreds of events for a normal dictation — visibly slow, and
+dropped characters are a known failure at that volume. Paste is instant at any length. The usual
+objection to paste is that it clobbers the clipboard, and that does not apply here: decision 2
+already requires the copy, so the clipboard is written either way.
+
+**Every synthetic event this app posts carries `HotkeyMonitor.syntheticMarker`** in
+`eventSourceUserData`, and the hotkey tap passes marked events straight through. Without it the app
+could re-trigger its own hotkey while pasting — a transcript containing a backtick would start
+dictation again.
+
+**Failure is detected before it happens, not after.** `IsSecureEventInputEnabled()` reports when a
+password field has focus, which blocks synthetic keystrokes system-wide. Checking up front turns a
+silent no-op into a message that says press ⌘V. The clipboard copy always happens first and
+unconditionally: if anything downstream fails, the user still has their words.
+
+**No toast on success.** The words appearing where the user was typing is the feedback; a
+confirmation over their real work would be clutter. Toasts appear only when delivery fell back to
+the clipboard and the user has to act.
+
 ### Transcription sits behind a protocol, and why
 
 Decision 1 says on-device, nothing leaves the Mac. It never named an engine — whisper.cpp was a
@@ -274,7 +298,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 3 | Hotkey recorder enforcing decision 6, global `CGEvent` tap wired to a toggle. Verified with an on-screen indicator, no audio yet. | **Done** — fully verified 2026-08-19. Conflict detection was cut; see `DEFERRED.md`. |
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
-| 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | Not started |
+| 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Written, not yet compiled** |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |

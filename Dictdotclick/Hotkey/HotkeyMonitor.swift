@@ -37,10 +37,15 @@ final class HotkeyMonitor {
     /// one. Long enough to be reachable, short enough not to feel broken.
     private let doubleTapWindow: TimeInterval = 0.20
 
-    /// Marker written into events this app re-posts, so the tap can recognise
-    /// its own output and pass it straight through. Without this, releasing a
-    /// held keystroke would be seen again and held again, forever.
-    private static let syntheticMarker: Int64 = 0x0D1C7
+    /// Marker written into every keyboard event this app posts, so the tap
+    /// recognises its own output and passes it straight through.
+    ///
+    /// Two things depend on it. Releasing a held keystroke would otherwise be
+    /// seen and held again, forever. And once Phase 6 delivers text by
+    /// synthesising ⌘V, an unmarked keystroke could match the user's own
+    /// binding — a transcript containing a backtick would re-trigger
+    /// dictation. Shared with `TextDelivery` for that reason.
+    static let syntheticMarker: Int64 = 0x0D1C7
 
     private var binding: HotkeyBinding
     private let onTrigger: () -> Void
