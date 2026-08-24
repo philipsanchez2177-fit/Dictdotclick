@@ -339,3 +339,62 @@ None of that is interesting engineering. It is, though, the actual texture of bu
 tooling you have not used before, and the fixes were process, not code: set `pull.rebase false` once,
 set the editor to nano, stop pasting fenced blocks. Worth recording precisely because a build journal
 that only shows the clean parts describes a project that never existed.
+
+---
+
+## 2026-08-22 (later) — Closing questions before they cost anything
+
+Phase 6 was short. The interesting work happened before it, in a request that is easy to skip:
+resolve the open questions before starting the phase that depends on them.
+
+Two were outstanding. One was cosmetic — a document claiming the code-signing identity stayed out of
+the repo, which had quietly stopped being true when Xcode wrote the development team into the project
+file. The fix was to decide rather than to patch: keep it committed, deliberately, because a fresh
+clone then builds and signs with no Xcode configuration, and a wrong signature is precisely what
+silently revokes Accessibility. A Team ID is an account identifier, not a credential. The document
+now says so and explains the tradeoff.
+
+The second question was load-bearing. A locked decision requires the app to learn the user's
+vocabulary — names, jargon, words no general model has heard. whisper.cpp does that with an initial
+prompt. When the engine was swapped for Apple's `SpeechAnalyzer`, whether an equivalent existed was
+unknown, and the honest response at the time was to build transcription behind a protocol, report
+`supportsVocabularyHints = false`, and say so in the UI in plain orange text.
+
+That flag was doing real work: it was not an admission of failure, it was a refusal to promise
+something unverified. But it was also a question that would eventually be answered, and answering it
+late means discovering mid-phase that the engine cannot do what the design assumed.
+
+The same technique that fixed two build errors earlier answered it in one command. Apple ships a
+`.swiftinterface` for every framework in the SDK; grepping the Speech framework for "contextual"
+printed `AnalysisContext.contextualStrings` and `SpeechAnalyzer.setContext` — exactly the mechanism
+required — along with `SFCustomLanguageModelData`, which supports custom pronunciations and phrase
+weighting and is frankly more than whisper.cpp ever offered. The flag flipped to true with evidence
+behind it, the hint list is now passed through, and the decision survives intact. What deliberately
+did *not* change is the claim being made: the hints reach the engine, which is true; whether they
+measurably improve a rare word is untested, and both documents say so.
+
+### Phase 6, and a test that could not have passed
+
+Delivery itself was one file. Decision 2 asked for auto-typing plus a clipboard copy; the typing half
+became ⌘V rather than synthesised characters, because a normal dictation is hundreds of key events,
+visibly slow, with dropped characters a known failure at that volume — and the usual objection to
+pasting, that it clobbers the clipboard, does not apply when the copy was already required.
+
+One trap surfaced only because real text was about to flow through the system for the first time. The
+app watches the keyboard with an event tap, and it was about to start posting keystrokes of its own.
+A transcript containing a backtick, pasted while the user's hotkey is a backtick gesture, would have
+re-triggered dictation mid-paste. The fix already existed: every event the app posts carries a marker
+in `eventSourceUserData` that the tap recognises and passes through. It had been added in Phase 3 for
+an unrelated reason and needed only to be shared.
+
+The instructions written for testing the fallback were simply wrong. They asked for dictation into a
+password field, expecting a "copied instead" toast. That test cannot pass, and the reason is more
+interesting than the mistake: secure input does not only stop apps writing keystrokes, it stops them
+reading. With a password field focused, the event tap receives nothing, the hotkey never arrives, and
+**dictation cannot be started into a password field at all**. macOS closes the door rather than
+letting an app knock on it. The fallback still has a reachable case — secure input switching on
+mid-dictation — but the broader finding is the one worth keeping: the protection is stronger than the
+code assumed, and the code assumed correctly anyway.
+
+Seven phases in, the loop is complete. Press a key, talk, press it again, and the words appear where
+you were already typing.
