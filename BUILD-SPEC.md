@@ -295,7 +295,13 @@ often refuses to stick.
 
 **Fix: set a development team** (a free Apple ID works) so the app is signed with a stable
 `Apple Development` identity and the grant survives rebuilds. Xcode → project → target → Signing &
-Capabilities → Team. Not committed to the repo — signing identity is per-machine.
+Capabilities → Team.
+
+**This is committed.** Xcode writes `DEVELOPMENT_TEAM` into `project.pbxproj`, and as of 2026-08-22
+it is in the repo deliberately: a fresh clone then builds and signs without anyone reconfiguring
+Xcode, which matters because a wrong signature is what silently revokes Accessibility. A Team ID is
+an account identifier, not a credential — nothing secret is exposed. The tradeoff is that a second
+contributor on a different Apple ID would have to change it; there is no second contributor.
 
 **Recovering a stale entry:** select Dictdotclick in System Settings → Privacy & Security →
 Accessibility, click **−** to remove it, then use **Request Access** in the app's permissions window.
