@@ -271,6 +271,24 @@ These are different mechanisms that run at different times, and conflating them 
 Snippet trigger phrases must **also** be registered as vocabulary hints. A phrase can't be replaced
 if Whisper never transcribed it correctly in the first place.
 
+**Built in Phase 7, 2026-08-26.** `DictionaryStore.hints` returns the vocabulary list plus every
+snippet trigger, so the rule above is enforced by the store rather than left to the user to
+remember — adding a snippet is one action, not two.
+
+**Post-processing order: filler cleanup first, then snippets.** Two reasons, both found by writing
+it. A filler inside a spoken trigger ("my, uh, address") stops the snippet matching if cleanup runs
+second; and cleanup running second would edit the *inserted* snippet text, which the user typed by
+hand and did not ask to have changed.
+
+**Snippet matching ignores punctuation and case.** A transcript is punctuated prose, so a trigger
+stored as "my address" has to match "My address." without the user thinking about it. Matching is
+done on word boundaries, which also means a trigger never fires inside a longer word. Longest
+trigger wins, so "my work address" is not swallowed by "my address".
+
+**Filler cleanup is off by default and deliberately short:** `um, umm, uhm, uh, uhh, er, erm, hmm,
+mmm, mhm`. "like" and "so" are real words far more often than they are filler; an app that eats them
+quietly changes what was said.
+
 ---
 
 ## Planned tech stack
@@ -307,7 +325,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
-| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | Not started |
+| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Written 2026-08-26 — not yet compiled.** Five new files, three edits; see `SESSION_HANDOFF.md`. |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
 

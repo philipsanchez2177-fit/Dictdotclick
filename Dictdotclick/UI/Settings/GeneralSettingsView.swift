@@ -13,6 +13,7 @@ import SwiftUI
 
 struct GeneralSettingsView: View {
     @State private var dictation = DictationController.shared
+    @Bindable private var settings = AppSettings.shared
 
     var body: some View {
         ScrollView {
@@ -25,8 +26,12 @@ struct GeneralSettingsView: View {
                     engineCard
                 }
 
+                section("Cleanup") {
+                    cleanupCard
+                }
+
                 section("Coming later") {
-                    Text("Launch at login and the filler-word cleanup toggle arrive with the features they control — Phase 7.")
+                    Text("Launch at login arrives with the features it controls.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -54,6 +59,24 @@ struct GeneralSettingsView: View {
                 Text(dictation.lastTranscript)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+
+                // Shown only when the dictionary actually changed something.
+                // Without it, a snippet that failed to match and a word the
+                // engine misheard look identical — and they have opposite
+                // fixes.
+                if dictation.lastTranscriptWasProcessed {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Heard before the dictionary was applied")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                        Text(dictation.lastHeardTranscript)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
             }
 
             if dictation.capturedSecondsLastRun > 0 {
@@ -84,6 +107,20 @@ struct GeneralSettingsView: View {
                 .labelStyle(.titleAndIcon)
                 .foregroundStyle(.orange)
         }
+    }
+
+    private var cleanupCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Remove filler words", isOn: $settings.removeFillerWords)
+
+            Text("Drops \u{201C}um\u{201D}, \u{201C}uh\u{201D}, \u{201C}er\u{201D} and \u{201C}hmm\u{201D}, then tidies the spacing. Off by default \u{2014} words like \u{201C}like\u{201D} and \u{201C}so\u{201D} are left alone, because they are usually real.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
     }
 
     private var engineCard: some View {

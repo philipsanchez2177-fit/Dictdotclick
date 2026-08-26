@@ -44,9 +44,34 @@ secure input switching on mid-dictation.
 
 ## Needs verifying on the Mac
 
-**Nothing outstanding.** No uncompiled Swift exists in the repo.
+**Phase 7 is written and has never been compiled.** Five new Swift files and three edited ones. No
+`project.pbxproj` changes — the target uses a synchronized folder group, so Xcode picks the new files
+up on its own. If it does not, that itself is the finding.
 
-Confirmed 2026-08-22:
+New: `Dictionary/DictionaryModel.swift`, `Dictionary/DictionaryStore.swift`,
+`Text/TranscriptPostProcessor.swift`, `Storage/AppSettings.swift`.
+Rewritten: `UI/Settings/DictionarySettingsView.swift`.
+Edited: `Hotkey/DictationController.swift`, `UI/Settings/GeneralSettingsView.swift`.
+
+- [ ] **It builds**, and the four new files appear in the target without being added by hand.
+- [ ] **Snippets.** Dictionary pane → Add snippet, trigger `my address`, expansion your address.
+      Dictate "please send it to my address" into TextEdit. Expect the address, not the phrase.
+      Quit and relaunch, then check the snippet is still there.
+- [ ] **Vocabulary hints, the one measurement Phase 7 owes.** Pick a word the app currently gets
+      wrong (a surname, "Dictdotclick"). Dictate it, note what comes out. Add it as a vocabulary
+      word, dictate the same sentence again. Whether it improves is the finding either way — the
+      General pane's "heard before the dictionary was applied" line makes the comparison visible.
+- [ ] **Filler cleanup.** General → Remove filler words on. Dictate "um, so, this is, uh, a test".
+      Expect "So, this is a test" — capital restored, no stray comma at the front.
+- [ ] **Nothing is committed that shouldn't be.** `dictionary.json` and `settings.json` live in
+      `~/Library/Application Support/Dictdotclick/`. Confirm neither appears in `git status`.
+
+The snippet matcher and the cleanup pass were ported to Python and run against ten cases in the
+container — trigger inside punctuation, longest-trigger-wins, no match inside a longer word, and an
+expansion containing its own trigger not looping. That checks the *algorithm*, not the Swift. The
+Swift itself is unverified.
+
+Confirmed 2026-08-22, still true:
 
 - [x] Dictation into TextEdit: hotkey, speech, transcript pasted at the cursor.
 - [x] `AnalysisContext.contextualStrings` and `SpeechAnalyzer.setContext` compile as written.

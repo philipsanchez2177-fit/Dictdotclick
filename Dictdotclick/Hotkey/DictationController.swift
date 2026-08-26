@@ -168,9 +168,23 @@ final class DictationController {
     /// appear.
     private(set) var isTranscribing = false
 
-    /// Result of the most recent dictation. Shown in Settings as a record;
-    /// Phase 6 also delivers it to the focused app.
+    /// Result of the most recent dictation, after the dictionary has been
+    /// applied. This is what gets delivered.
     private(set) var lastTranscript: String = ""
+
+    /// What the engine actually heard, before snippets and filler cleanup.
+    ///
+    /// Kept because it is the only way to tell a mishearing from a snippet
+    /// that failed to match — the two look identical once the transcript is
+    /// in the focused app, and they have opposite fixes (add a vocabulary
+    /// word vs. correct the trigger).
+    private(set) var lastHeardTranscript: String = ""
+
+    /// True when post-processing changed the transcript, so Settings can show
+    /// both versions only when there is something to compare.
+    var lastTranscriptWasProcessed: Bool {
+        !lastHeardTranscript.isEmpty && lastHeardTranscript != lastTranscript
+    }
 
     /// What happened to the last transcript — pasted, or clipboard only.
     /// Kept so Settings can report it after the toast has gone.
@@ -180,14 +194,27 @@ final class DictationController {
         guard !samples.isEmpty else { return }
         isTranscribing = true
 
+        // Read once, here, rather than inside the task: the dictionary is
+        // edited on the main actor and a dictation should use the words as
+        // they stood when it started, not as they stand when it finishes.
+        let hints = DictionaryStore.shared.hints
+        let snippets = DictionaryStore.shared.usableSnippets
+        let removeFillers = AppSettings.shared.removeFillerWords
+
         Task { [transcriber] in
             do {
-                let text = try await transcriber.transcribe(
+                let heard = try await transcriber.transcribe(
                     samples: samples,
                     sampleRate: AudioCapture.targetSampleRate,
-                    hints: []          // Phase 7 supplies the dictionary
+                    hints: hints
+                )
+                let text = TranscriptPostProcessor.apply(
+                    to: heard,
+                    snippets: snippets,
+                    removeFillers: removeFillers
                 )
                 await MainActor.run {
+                    self.lastHeardTranscript = heard
                     self.lastTranscript = text
                     self.isTranscribing = false
                     if text.isEmpty {
