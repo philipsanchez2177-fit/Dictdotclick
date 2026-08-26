@@ -398,3 +398,55 @@ code assumed, and the code assumed correctly anyway.
 
 Seven phases in, the loop is complete. Press a key, talk, press it again, and the words appear where
 you were already typing.
+
+---
+
+## 2026-08-26 — Testing the untestable half
+
+Phase 7 is the one the whole app was pitched on. A dictation tool that hears "Dictdotclick" as "dict
+dot click" is a demo; one that learns your vocabulary is a tool. It is also the phase with the most
+logic per line — a snippet matcher, a filler-word stripper, two kinds of dictionary entry that run at
+opposite ends of the pipeline — and it landed in a project whose defining constraint is that its code
+cannot be compiled where it is written.
+
+Every previous phase absorbed that constraint the same way: write carefully, check delimiters and
+imports, commit with "written, not yet compiled," and let the Mac be the judge. That is honest, and
+for UI work it is close to sufficient — a view that fails to compile fails loudly and once.
+
+It is much weaker for logic. A snippet matcher can compile perfectly and still be wrong in ways only
+specific inputs reveal. Does a trigger match when it is followed by a comma? If two triggers overlap,
+does the longer one win? Does "my address" match inside "my addressee"? If an expansion happens to
+contain its own trigger, does the replacement loop forever? None of those questions are answered by
+"it built." All of them would surface later as a confusing bug in the middle of dictating something
+real.
+
+So the matcher and the cleanup pass were ported to Python — not as a rewrite, as a transcription of
+the same algorithm — and run against ten cases in the container: trigger inside punctuation,
+longest-trigger-wins, no match inside a longer word, an expansion containing its own trigger, and the
+filler stripper's awkward edge where removing a leading "um," has to restore the capital on the word
+that becomes the new sentence start.
+
+That is a genuinely limited technique and worth being precise about what it buys. It does not test
+the Swift. A typo in the Swift, a wrong API, an off-by-one that exists in one language and not the
+other — none of that is caught. What it tests is the *algorithm*: the part where the thinking happens,
+and the part most likely to be subtly wrong rather than loudly broken. Splitting "is the logic right"
+from "does the code compile" turns one unverifiable question into one that can be answered now and
+one the Mac answers in seconds.
+
+The handoff records the distinction rather than blurring it: ten cases pass, that checks the
+algorithm, the Swift itself is unverified.
+
+### The measurement Phase 7 still owes
+
+One thing deliberately stayed unclaimed. Four days ago the vocabulary-hints question was resolved by
+reading Apple's own interface file — `AnalysisContext.contextualStrings` exists, hints are passed to
+the engine, `supportsVocabularyHints` flipped from false to true with evidence behind it.
+
+But "the hints reach the engine" and "the hints improve recognition" are different claims, and only
+the first one has evidence. So the Settings pane now shows what the engine heard *before* the
+dictionary was applied, alongside the final text. Not a debugging leftover — it is the instrument for
+the one measurement this phase owes: dictate a word the app gets wrong, add it, dictate again, and
+read both lines. Whether it improves is the finding either way.
+
+An app that says "vocabulary hints: on" while quietly doing nothing would be worse than one that
+admits it does not know yet.
