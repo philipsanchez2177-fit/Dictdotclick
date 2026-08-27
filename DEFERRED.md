@@ -55,6 +55,15 @@ What *is* achievable, if it earns a slot later:
 Still to test with real vocabulary in Phase 7: whether the hints *measurably* improve recognition of
 a rare word. The API is wired; its effect is unmeasured.
 
+## Open over time, not blocking
+
+| Item | Why it is not a task | What would reopen it |
+|---|---|---|
+| **Do vocabulary hints actually improve recognition?** | Phase 7 closed 2026-08-26 without measuring it. Mishearings surface over weeks of dictation, not on demand, and a contrived one-word test would answer less than real use. The plumbing is verified; the effect is not. | Philip adding a word and finding it *still* misheard afterwards. That is the negative result, and it is worth acting on rather than living with. |
+| **More snippets, more vocabulary** | Expected to grow as real friction shows up. Not a phase; the editor already supports it. | Nothing — this is just use. |
+
+If hints prove ineffective, the fallback order below is still the plan.
+
 ## Worth reaching for later
 
 | Item | Why | When |

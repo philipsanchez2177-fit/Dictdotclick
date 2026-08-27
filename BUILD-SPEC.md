@@ -207,8 +207,15 @@ The framework goes further than whisper.cpp did: `SFCustomLanguageModelData` sup
 pronunciations and phrase weighting. Not used — a word list is far simpler to build a dictionary UI
 around, and it is only worth reaching for if plain hints prove too weak. See `DEFERRED.md`.
 
-Still unmeasured: whether the hints *noticeably* improve a rare word. The plumbing is in; Phase 7
-tests it with real vocabulary.
+**Still unmeasured, and deliberately so.** Whether hints *noticeably* improve a rare word was not
+settled by a test session — Philip closed Phase 7 on 2026-08-26 without it, on the reasoning that
+mishearings surface over weeks of real dictation rather than on demand. That is the right call: a
+contrived before/after on one word would answer less than a fortnight of actual use.
+
+What this means for the flag: `supportsVocabularyHints = true` continues to mean *hints are passed to
+the engine*, which is verified. It has never meant *hints demonstrably help*. Do not upgrade the
+claim without evidence, and if hints turn out not to help, `DEFERRED.md` still holds the fallback
+order.
 
 Everything engine-specific is confined to `AppleTranscriber.swift` behind the `Transcriber`
 protocol. If Phase 7 finds hints unworkable, a whisper.cpp implementation replaces that one file.
@@ -354,7 +361,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
-| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Snippets verified on the Mac 2026-08-26.** Vocabulary-hint effectiveness still unmeasured; save-confirmation UI added after use and not yet compiled. |
+| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Done** — closed 2026-08-26. Snippets and the locked-row editor verified in use. Vocabulary-hint *effectiveness* deliberately left to real-world use; see `DEFERRED.md`. |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
 
