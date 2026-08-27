@@ -129,25 +129,34 @@ The default in code remains the double-tap of `` ` ``. Philip's own setting, per
 event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
 a future session doesn't treat lost window-cycling as a bug.
 
-### Autosave needs an acknowledgement, or it reads as broken
+### An editor that autosaves still needs rows that visibly close
 
 The dictionary saves on every keystroke — no Save button, no unsaved state to lose by closing a
-window. Correct behaviour, and on first real use it read as *unfinished*: with nothing to press and
-nothing acknowledging the typing, there was no way to tell an entry had registered except by
-dictating and seeing what happened.
+window. Correct, and it took two passes to make it *read* as correct.
 
-The fix is feedback, not a Save button — reintroducing one would recreate exactly the losable state
-autosave exists to prevent:
+**First attempt: a status tick.** Every row stayed a live text field, and a green tick appeared once
+the row was usable. Rejected in use, and the reason generalises: *a tick beside a field with a
+blinking cursor in it does not read as committed.* The row still looks open, so the user is still
+holding it. Acknowledgement is not the same as closure.
 
-- **A per-row status dot.** Filled once the row is usable, hollow while incomplete. Because saving is
-  immediate, "usable" and "stored" are the same state, so the dot can honestly mean saved. A snippet
-  needs both halves before it counts.
-- **A "Saved" flash on Return.** Return already committed the edit; it did so invisibly. Now it says
-  so.
-- **A row count per card**, so an added row is visible even when its field is still empty.
+**What it is now: rows are locked by default.** Two states, only one editable:
 
-Worth generalising: any autosaving editor in this app owes the user a visible commit moment. Silence
-is indistinguishable from failure.
+| State | Looks like |
+|---|---|
+| **Locked** (resting) | Plain dimmed text on a tinted background. Not a field. This is what "stored" looks like. |
+| **Editing** | Real fields, entered deliberately via the pencil or a click, left deliberately via Return or **Done**. |
+
+Supporting rules, each fixing something the first pass got wrong:
+
+- **New rows open in editing.** A locked blank row would be unfillable.
+- **Committing an empty row deletes it.** Return on a row added by mistake is also how you cancel it.
+- **Focus is set on the next runloop tick** after unlocking — the field does not exist until the view
+  rebuilds, and focus cannot land on a view that isn't there yet.
+- **A snippet's expansion field cannot submit on Return** (it is multi-line, so Return inserts a
+  newline). Done is its exit; the trigger field's Return commits the pair.
+
+Worth generalising for Phase 9's history pane: **an editor owes the user a state that visibly is not
+editable.** A confirmation that leaves the control live still leaves the user holding it.
 
 ### Delivery pastes rather than types, and why
 

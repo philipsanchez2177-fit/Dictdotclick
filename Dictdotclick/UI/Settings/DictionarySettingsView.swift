@@ -5,24 +5,27 @@
 //  Phase 7 — the two-list editor.
 //
 //  The two lists look alike and are not alike, so the pane says which end of
-//  the pipeline each one acts on rather than leaving the user to guess why
-//  one of them fixes mishearing and the other does not.
+//  the pipeline each one acts on rather than leaving the user to guess why one
+//  of them fixes mishearing and the other does not.
 //
+//  ── Rows are locked by default ─────────────────────────────────────────
 //  Edits write straight through to DictionaryStore, which saves on change.
-//  There is no Save button and no unsaved state to lose.
+//  A first version showed every row as a live text field and added a green
+//  tick once the row was usable. That was wrong, and the reason is worth
+//  keeping: a tick next to a field with a blinking cursor in it does not read
+//  as *committed*. The row still looks open, so the user is still holding it.
 //
-//  That is the right behaviour and it reads as broken without feedback: with
-//  nothing to press and nothing acknowledging the typing, the user is left
-//  inferring from behaviour whether an entry took. Reported from real use,
-//  2026-08-26.
+//  So a row has two states, and only one of them is editable:
 //
-//  Two things fix it, and neither reintroduces an unsaved state:
+//    • **Locked** — plain text, dimmed, not a field. This is the resting
+//      state, and it is what "this is stored" looks like.
+//    • **Editing** — real fields, entered deliberately and left deliberately
+//      by pressing Return or Done.
 //
-//  * A per-row status dot — filled once a row is usable, hollow while it is
-//    still incomplete. Because saving is immediate, "usable" and "stored" are
-//    the same thing, so the dot can honestly mean saved.
-//  * A "Saved" flash on Return. Return already committed; it just did so
-//    invisibly. Now it says so.
+//  Newly added rows open in editing (a locked blank row would be unfillable),
+//  and committing an empty row deletes it, so Return on a row added by mistake
+//  is also how you cancel it. No Save button, no unsaved state — the lock is
+//  about telling the truth, not about when the write happens.
 //
 
 import SwiftUI
@@ -31,8 +34,12 @@ struct DictionarySettingsView: View {
     @Bindable private var store = DictionaryStore.shared
     @State private var dictation = DictationController.shared
 
-    /// Drives the brief "Saved" acknowledgement after Return.
-    @State private var showSavedFlash = false
+    /// Rows currently open for editing. Everything else is locked.
+    @State private var editingIDs: Set<UUID> = []
+
+    /// Which field holds the caret, so opening a row puts the cursor in it
+    /// rather than making the user click again.
+    @FocusState private var focusedID: UUID?
 
     var body: some View {
         ScrollView {
@@ -46,7 +53,7 @@ struct DictionarySettingsView: View {
                 }
 
                 section("Vocabulary",
-                        caption: "Names and jargon the engine mishears. These are given to it before it listens, so they change what it hears — not what happens afterwards. Changes save as you type; press Return to confirm.") {
+                        caption: "Names and jargon the engine mishears. These are given to it before it listens, so they change what it hears — not what happens afterwards.") {
                     vocabularyCard
                 }
 
@@ -74,22 +81,45 @@ struct DictionarySettingsView: View {
             }
 
             ForEach($store.vocabulary) { $entry in
-                HStack(spacing: 8) {
-                    statusDot(isReady: !entry.phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                if editingIDs.contains(entry.id) {
+                    HStack(spacing: 8) {
+                        pencilSlot()
 
-                    TextField("Word or name", text: $entry.phrase)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit(flashSaved)
+                        TextField("Word or name", text: $entry.phrase)
+                            .textFieldStyle(.roundedBorder)
+                            .focused($focusedID, equals: entry.id)
+                            .onSubmit { commitVocabulary(entry) }
 
-                    deleteButton("Remove word") { store.remove(vocabularyID: entry.id) }
+                        doneButton { commitVocabulary(entry) }
+                    }
+                } else {
+                    lockedRow(
+                        onEdit: { beginEditing(entry.id) },
+                        onDelete: { store.remove(vocabularyID: entry.id) }
+                    ) {
+                        Text(entry.phrase)
+                            .font(.body)
+                    }
                 }
             }
 
-            addButton("Add word") { store.addVocabulary() }
+            addButton("Add word") {
+                let id = store.addVocabulary()
+                beginEditing(id)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+
+    /// Return or Done on an empty row removes it, so a row added by accident
+    /// is dismissed the same way one is confirmed.
+    private func commitVocabulary(_ entry: VocabularyEntry) {
+        if entry.phrase.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            store.remove(vocabularyID: entry.id)
+        }
+        endEditing(entry.id)
     }
 
     // MARK: - Snippets
@@ -106,22 +136,40 @@ struct DictionarySettingsView: View {
 
             ForEach($store.snippets) { $snippet in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        // A snippet only counts as ready with both halves —
-                        // a trigger with no replacement text does nothing.
-                        statusDot(isReady: isReady(snippet))
+                    if editingIDs.contains(snippet.id) {
+                        HStack(spacing: 8) {
+                            pencilSlot()
 
-                        TextField("When I say…", text: $snippet.trigger)
+                            TextField("When I say…", text: $snippet.trigger)
+                                .textFieldStyle(.roundedBorder)
+                                .focused($focusedID, equals: snippet.id)
+                                .onSubmit { commitSnippet(snippet) }
+
+                            doneButton { commitSnippet(snippet) }
+                        }
+
+                        // Return inserts a newline in a multi-line field, so
+                        // this one cannot submit. Done is the way out, and the
+                        // trigger field's Return also commits the pair.
+                        TextField("…type this", text: $snippet.expansion, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
-                            .onSubmit(flashSaved)
-
-                        deleteButton("Remove snippet") { store.remove(snippetID: snippet.id) }
+                            .lineLimit(2 ... 6)
+                            .padding(.leading, 22)
+                    } else {
+                        lockedRow(
+                            onEdit: { beginEditing(snippet.id) },
+                            onDelete: { store.remove(snippetID: snippet.id) }
+                        ) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(snippet.trigger)
+                                    .font(.body)
+                                Text(snippet.expansion)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(3)
+                            }
+                        }
                     }
-
-                    TextField("…type this", text: $snippet.expansion, axis: .vertical)
-                        .textFieldStyle(.roundedBorder)
-                        .lineLimit(2 ... 6)
-                        .padding(.leading, 20)   // clears the status dot column
 
                     if duplicates.contains(normalizedTrigger(snippet.trigger)) {
                         warning("Another snippet uses this trigger. Only the first will ever fire.")
@@ -131,62 +179,103 @@ struct DictionarySettingsView: View {
                 }
             }
 
-            addButton("Add snippet") { store.addSnippet() }
+            addButton("Add snippet") {
+                let id = store.addSnippet()
+                beginEditing(id)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .glassEffect(.regular, in: .rect(cornerRadius: 14))
     }
 
-    private func isReady(_ snippet: Snippet) -> Bool {
-        !snippet.trigger.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !snippet.expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    /// A snippet with no trigger at all is removed on commit. One with a
+    /// trigger and no expansion is kept — it is half-finished rather than
+    /// accidental, and the warning below it already says so.
+    private func commitSnippet(_ snippet: Snippet) {
+        if snippet.trigger.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && snippet.expansion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            store.remove(snippetID: snippet.id)
+        }
+        endEditing(snippet.id)
+    }
+
+    // MARK: - Lock and unlock
+
+    private func beginEditing(_ id: UUID) {
+        editingIDs.insert(id)
+        // Deferred: the field does not exist until the view rebuilds in its
+        // editing state, and focus cannot land on a view that isn't there yet.
+        DispatchQueue.main.async { focusedID = id }
+    }
+
+    private func endEditing(_ id: UUID) {
+        focusedID = nil
+        withAnimation(.easeOut(duration: 0.15)) {
+            _ = editingIDs.remove(id)
+        }
+    }
+
+    /// The resting state of every row: dimmed, unselectable, and visibly not
+    /// a text field. Clicking anywhere on it re-opens it for editing.
+    private func lockedRow<Content: View>(
+        onEdit: @escaping () -> Void,
+        onDelete: @escaping () -> Void,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.system(size: 13))
+                .frame(width: 14)
+                .padding(.top, 2)
+
+            content()
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(action: onEdit) {
+                Image(systemName: "pencil")
+            }
+            .buttonStyle(.borderless)
+            .help("Edit")
+
+            deleteButton("Remove", action: onDelete)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 8))
+        .contentShape(.rect)
+        .onTapGesture(perform: onEdit)
+    }
+
+    /// Keeps the locked and editing layouts aligned — without it, rows shift
+    /// sideways as they change state.
+    private func pencilSlot() -> some View {
+        Image(systemName: "pencil.circle.fill")
+            .foregroundStyle(.tint)
+            .font(.system(size: 13))
+            .frame(width: 14)
+    }
+
+    private func doneButton(action: @escaping () -> Void) -> some View {
+        Button("Done", action: action)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .keyboardShortcut(.return, modifiers: [])
     }
 
     private func normalizedTrigger(_ trigger: String) -> String {
         trigger.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    // MARK: - Feedback
-
-    /// Filled dot = this row is complete, and therefore already on disk.
-    /// Hollow = still missing something and doing nothing yet.
-    private func statusDot(isReady: Bool) -> some View {
-        Image(systemName: isReady ? "checkmark.circle.fill" : "circle.dashed")
-            .foregroundStyle(isReady ? Color.green : Color.secondary.opacity(0.6))
-            .font(.system(size: 13))
-            .frame(width: 14)
-            .help(isReady ? "Saved" : "Incomplete — this entry isn't doing anything yet")
-    }
-
-    /// Row count, and the acknowledgement that Return was heard.
-    private func cardHeader(count: Int, noun: String) -> some View {
-        HStack(spacing: 8) {
-            Text(count == 1 ? "1 \(noun)" : "\(count) \(noun)s")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            if showSavedFlash {
-                Label("Saved", systemImage: "checkmark")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
-                    .transition(.opacity)
-            }
-        }
-    }
-
-    /// Return already committed the edit — the store saves on every change.
-    /// This only makes that visible, which is the whole complaint.
-    private func flashSaved() {
-        withAnimation(.easeOut(duration: 0.15)) { showSavedFlash = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-            withAnimation(.easeIn(duration: 0.3)) { showSavedFlash = false }
-        }
-    }
-
     // MARK: - Pieces
+
+    private func cardHeader(count: Int, noun: String) -> some View {
+        Text(count == 1 ? "1 \(noun)" : "\(count) \(noun)s")
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+    }
 
     private var privacyNote: some View {
         Label("Stored only on this Mac, in Application Support. Snippets are never sent anywhere and are not in the app's source repository.",

@@ -71,12 +71,20 @@ final class DictionaryStore {
 
     // MARK: - Editing
 
-    func addVocabulary(_ phrase: String = "") {
-        vocabulary.append(VocabularyEntry(phrase: phrase))
+    /// Returns the new entry's id so the editor can open it for typing —
+    /// a row added and left locked would be a blank line the user cannot fill.
+    @discardableResult
+    func addVocabulary(_ phrase: String = "") -> VocabularyEntry.ID {
+        let entry = VocabularyEntry(phrase: phrase)
+        vocabulary.append(entry)
+        return entry.id
     }
 
-    func addSnippet() {
-        snippets.append(Snippet())
+    @discardableResult
+    func addSnippet() -> Snippet.ID {
+        let snippet = Snippet()
+        snippets.append(snippet)
+        return snippet.id
     }
 
     func remove(vocabularyID id: VocabularyEntry.ID) {
