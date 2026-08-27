@@ -129,6 +129,26 @@ The default in code remains the double-tap of `` ` ``. Philip's own setting, per
 event stream, so binding it likely shadows that shortcut. Philip accepted it knowingly; noted here so
 a future session doesn't treat lost window-cycling as a bug.
 
+### Autosave needs an acknowledgement, or it reads as broken
+
+The dictionary saves on every keystroke — no Save button, no unsaved state to lose by closing a
+window. Correct behaviour, and on first real use it read as *unfinished*: with nothing to press and
+nothing acknowledging the typing, there was no way to tell an entry had registered except by
+dictating and seeing what happened.
+
+The fix is feedback, not a Save button — reintroducing one would recreate exactly the losable state
+autosave exists to prevent:
+
+- **A per-row status dot.** Filled once the row is usable, hollow while incomplete. Because saving is
+  immediate, "usable" and "stored" are the same state, so the dot can honestly mean saved. A snippet
+  needs both halves before it counts.
+- **A "Saved" flash on Return.** Return already committed the edit; it did so invisibly. Now it says
+  so.
+- **A row count per card**, so an added row is visible even when its field is still empty.
+
+Worth generalising: any autosaving editor in this app owes the user a visible commit moment. Silence
+is indistinguishable from failure.
+
 ### Delivery pastes rather than types, and why
 
 Decision 2 says "type it into the focused app AND copy to the clipboard". Phase 6 implements the
@@ -325,7 +345,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 4 | `AVAudioEngine` capture + glass pill with live waveform and timer. Audio captured and discarded — proves capture and UI independently. | **Done** — verified 2026-08-20. Pill placement persistence and full-screen float not explicitly checked. |
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
-| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Written 2026-08-26 — not yet compiled.** Five new files, three edits; see `SESSION_HANDOFF.md`. |
+| 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Snippets verified on the Mac 2026-08-26.** Vocabulary-hint effectiveness still unmeasured; save-confirmation UI added after use and not yet compiled. |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
 
