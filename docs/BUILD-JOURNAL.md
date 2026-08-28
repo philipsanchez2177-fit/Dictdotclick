@@ -450,3 +450,65 @@ read both lines. Whether it improves is the finding either way.
 
 An app that says "vocabulary hints: on" while quietly doing nothing would be worse than one that
 admits it does not know yet.
+
+---
+
+## 2026-08-27 — Two wrong fixes for the same complaint
+
+Phase 7 was already working when the session started. Snippets expanded correctly — saying "my
+address" typed a real street address — and the dictionary persisted across relaunches. The remaining
+work was not a bug, and it produced the most instructive exchange of the project so far.
+
+The report was that entering a word or a snippet had no way to "lock it in." No button to press, no
+Return that did anything visible. It seemed to be working, but there was no way to be sure without
+dictating and watching.
+
+The underlying design was deliberate. The dictionary saves on every keystroke, so there is no Save
+button and no unsaved state to lose by closing a window. That is the right behaviour, and the
+temptation was to defend it — the data *was* safe, and adding a Save button would have recreated
+exactly the losable state autosave exists to prevent.
+
+So the first fix kept autosave and added acknowledgement: a green tick beside each row once it became
+usable, a "Saved" flash on Return, a row count per card. Reasonable, and it addressed the words of
+the complaint.
+
+It did not address the complaint. The response was precise about why: *"it just kind of stays live in
+the window and the cursor stays in there... there needs to be some way to confirm, yep, that's what I
+want in there."*
+
+The tick was correct information attached to a control that still looked open. A green check beside a
+text field with a blinking caret in it does not read as committed, because the field is still a
+field — the user is still holding it. What was missing was not confirmation. It was **closure**.
+
+The second attempt changed the shape rather than adding to it. A row now has two states, and only one
+of them is editable. Locked is the resting state: plain dimmed text on a tinted background, visibly
+not a text field, with a pencil to reopen it. Editing is entered deliberately and left deliberately,
+by Return or a Done button. Nothing about *when* the write happens changed — the store still saves on
+every keystroke. What changed is that the interface now stops pretending the row is open when it
+isn't.
+
+Several details fell out of that shape and each one fixes something the first pass had wrong. New
+rows open in editing, because a locked blank row would be unfillable. Committing an empty row deletes
+it, so Return is also how you cancel a row added by mistake. Focus has to be set on the next runloop
+tick after unlocking, because the field does not exist until the view rebuilds. And a snippet's
+expansion is multi-line — Return inserts a newline there and cannot submit — so Done is its exit
+while the trigger field's Return commits the pair.
+
+The generalisation went into the spec for Phase 9's history pane: **an editor owes the user a state
+that visibly is not editable.** Acknowledgement is not closure. A confirmation that leaves the control
+live still leaves the user holding it.
+
+### Closing a phase without the measurement it owed
+
+Phase 7 nominally owed one number: whether vocabulary hints measurably improve recognition. The
+plumbing was verified days earlier by reading Apple's interface file, but "hints reach the engine" and
+"hints help" are different claims and only the first had evidence.
+
+Phase 7 was closed anyway, on the reasoning that mishearings surface over weeks of real dictation
+rather than on demand, and a contrived one-word before/after would answer less than actual use. That
+is a good call, and the honest way to record it is not to quietly mark the phase verified. `DEFERRED`
+now carries it as *open over time, not blocking*, with the specific event that would reopen it: adding
+a word and finding it still misheard. The flag in code still means only what it always meant, and the
+spec says so explicitly so a later session cannot promote it by accident.
+
+Eight phases done. The remaining two are refinement — live preview, then history.
