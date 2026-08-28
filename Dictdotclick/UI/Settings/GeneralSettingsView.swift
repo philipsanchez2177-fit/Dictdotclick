@@ -30,6 +30,10 @@ struct GeneralSettingsView: View {
                     cleanupCard
                 }
 
+                section("Live preview") {
+                    livePreviewCard
+                }
+
                 section("Coming later") {
                     Text("Launch at login arrives with the features it controls.")
                         .font(.callout)
@@ -114,6 +118,20 @@ struct GeneralSettingsView: View {
             Toggle("Remove filler words", isOn: $settings.removeFillerWords)
 
             Text("Drops \u{201C}um\u{201D}, \u{201C}uh\u{201D}, \u{201C}er\u{201D} and \u{201C}hmm\u{201D}, then tidies the spacing. Off by default \u{2014} words like \u{201C}like\u{201D} and \u{201C}so\u{201D} are left alone, because they are usually real.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+    }
+
+    private var livePreviewCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Show text in the pill while dictating", isOn: $settings.enableLivePreview)
+
+            Text("Off falls back to the waveform and timer only. Either way, what gets typed is unaffected \u{2014} this only changes what the pill shows while you talk.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -141,6 +141,7 @@ final class DictationController {
 
         isListening = true
         RecordingHUD.shared.show()
+        beginLivePreview()
     }
 
     /// Ends dictation. Also the path used when something other than the
@@ -152,7 +153,14 @@ final class DictationController {
 
         let samples = AudioCapture.shared.stop()
         capturedSecondsLastRun = Double(samples.count) / AudioCapture.targetSampleRate
-        transcribe(samples)
+
+        // Taken before `endLivePreview` clears the property — the session
+        // itself still owes `finishDictation` its committed text even though
+        // the pill is no longer listening for updates from it.
+        let session = liveSession
+        endLivePreview()
+
+        finishDictation(samples: samples, liveSession: session)
     }
 
     /// Length of the most recent capture.
@@ -190,7 +198,7 @@ final class DictationController {
     /// Kept so Settings can report it after the toast has gone.
     private(set) var lastDelivery: DeliveryOutcome?
 
-    private func transcribe(_ samples: [Float]) {
+    private func finishDictation(samples: [Float], liveSession: LiveTranscriptionSession?) {
         guard !samples.isEmpty else { return }
         isTranscribing = true
 
@@ -203,9 +211,10 @@ final class DictationController {
 
         Task { [transcriber] in
             do {
-                let heard = try await transcriber.transcribe(
+                let heard = try await Self.resolveHeardText(
+                    liveSession: liveSession,
                     samples: samples,
-                    sampleRate: AudioCapture.targetSampleRate,
+                    transcriber: transcriber,
                     hints: hints
                 )
                 let text = TranscriptPostProcessor.apply(
@@ -233,8 +242,107 @@ final class DictationController {
         }
     }
 
+    /// Prefers the streaming session's own committed transcript: by the time
+    /// the user stops, it has already heard almost everything, so finishing
+    /// it is fast and there is no second pass over the whole recording.
+    ///
+    /// Falls back to a full one-shot transcription of the recorded buffer —
+    /// Phase 5's verified path — whenever there is no live session, or the
+    /// live session throws, or it comes back with nothing. `try?` here is
+    /// deliberate: a streaming failure is not a dictation failure, it just
+    /// means this dictation takes the slightly slower path Phase 7 always
+    /// used. Live preview must never make a dictation *less* likely to
+    /// succeed than it was before Phase 8.
+    private static func resolveHeardText(
+        liveSession: LiveTranscriptionSession?,
+        samples: [Float],
+        transcriber: Transcriber,
+        hints: [String]
+    ) async throws -> String {
+        if let liveSession, let text = try? await liveSession.finish(), !text.isEmpty {
+            return text
+        }
+        return try await transcriber.transcribe(samples: samples, sampleRate: AudioCapture.targetSampleRate, hints: hints)
+    }
+
     func setBinding(_ newBinding: HotkeyBinding) {
         binding = newBinding
+    }
+
+    // MARK: - Live preview (Phase 8)
+
+    /// The transcript as heard so far, live. Empty when idle or when live
+    /// preview is off or unavailable. The pill reads this directly to show
+    /// text while the user is still talking — nothing here is ever delivered;
+    /// delivery always goes through `finishDictation`'s committed text.
+    private(set) var liveTranscript = LiveTranscript()
+
+    @ObservationIgnored private var liveSession: LiveTranscriptionSession?
+    @ObservationIgnored private var liveUpdatesTask: Task<Void, Never>?
+
+    /// Starts a streaming session alongside the recording the moment
+    /// dictation starts, if the setting and the engine both allow it.
+    ///
+    /// Every failure path here is silent by design: the user is never
+    /// dictating into an error, they are dictating into the one-shot
+    /// fallback instead, exactly as if this phase were switched off.
+    private func beginLivePreview() {
+        liveTranscript = LiveTranscript()
+        liveSession = nil
+
+        guard AppSettings.shared.enableLivePreview,
+              let streaming = transcriber as? StreamingTranscriber else { return }
+
+        let hints = DictionaryStore.shared.hints
+
+        liveUpdatesTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let session = try await streaming.makeLiveSession(
+                    hints: hints,
+                    inputSampleRate: AudioCapture.targetSampleRate
+                )
+
+                // A very short dictation can stop before setup above
+                // finishes — `endLivePreview` will have cancelled this task
+                // already, and `stopListening` never saw this session to
+                // hand it to `finishDictation`. Left alone it would run
+                // forever with nothing ever calling `finish()` on it, so
+                // it's closed here instead of being handed to the pill.
+                guard !Task.isCancelled else {
+                    _ = try? await session.finish()
+                    return
+                }
+
+                // `beginLiveFeed` hands back everything the microphone
+                // already captured while this async setup was in flight,
+                // under the same lock that starts routing new audio to the
+                // session — see its doc comment. Feeding that backlog first
+                // is what stops the first words of every dictation being
+                // silently dropped from the live transcript.
+                let backlog = AudioCapture.shared.beginLiveFeed { [weak session] chunk in
+                    session?.append(samples: chunk)
+                }
+                if !backlog.isEmpty {
+                    session.append(samples: backlog)
+                }
+
+                await MainActor.run { self.liveSession = session }
+
+                for await update in session.updates {
+                    await MainActor.run { self.liveTranscript = update }
+                }
+            } catch {
+                await MainActor.run { self.liveSession = nil }
+            }
+        }
+    }
+
+    private func endLivePreview() {
+        AudioCapture.shared.endLiveFeed()
+        liveUpdatesTask?.cancel()
+        liveUpdatesTask = nil
+        liveSession = nil
     }
 }
 

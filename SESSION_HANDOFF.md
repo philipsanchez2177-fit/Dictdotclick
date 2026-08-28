@@ -1,4 +1,51 @@
-# SESSION HANDOFF — 2026-08-27-a
+# SESSION HANDOFF — 2026-08-28-a
+
+## Update — Phase 8 written 2026-08-28
+
+**Written, not compiled.** Live text preview for the pill — see `BUILD-SPEC.md`'s new Phase 8
+section for the design. Six files touched, one new:
+
+- `Dictdotclick/Transcription/LiveTranscription.swift` — **new.** `LiveTranscript` (the
+  final/volatile split and the fold-in rule) and the `StreamingTranscriber` /
+  `LiveTranscriptionSession` protocols.
+- `Dictdotclick/Transcription/AppleTranscriber.swift` — added `StreamingTranscriber` conformance and
+  `AppleLiveSession`, using `.progressiveTranscription` instead of Phase 5's `.transcription`.
+- `Dictdotclick/Audio/AudioCapture.swift` — added `beginLiveFeed` / `endLiveFeed`, the atomic
+  snapshot-and-subscribe handoff that stops async session setup from losing the first words.
+- `Dictdotclick/Hotkey/DictationController.swift` — `startListening`/`stopListening` now run a live
+  session alongside the recording; `stopListening` prefers the session's committed text and falls
+  back to the untouched one-shot path on any failure or empty result.
+- `Dictdotclick/Storage/AppSettings.swift` — new `enableLivePreview` toggle, default on. Decode is
+  now hand-written (`decodeIfPresent` per field) rather than synthesized, so a settings.json from
+  before this field existed doesn't lose the user's `removeFillerWords` choice on upgrade.
+- `Dictdotclick/UI/HUD/RecordingPillView.swift` — a fixed-size second row showing finalized text in
+  the normal colour and the engine's current guess dimmed below it.
+- `Dictdotclick/UI/Settings/GeneralSettingsView.swift` — the toggle's card.
+
+**Needs verifying on the Mac, added this session** — the prior session's checklist (below, under
+"Session — 2026-08-27-a") closed clean; these are the new open items:
+
+- [ ] `Dictdotclick.xcodeproj` still builds with the new file and the changed ones. This is the
+  first real test — `SpeechTranscriber(preset: .progressiveTranscription)` and iterating
+  `transcriber.results` without a `where isFinal` filter are new API surface, guessed from the
+  framework's shape rather than confirmed the way Phase 5's symbols were. If it doesn't compile,
+  grep the `.swiftinterface` per the method `BUILD-SPEC.md` already documents rather than guessing
+  twice.
+- [ ] Say something and watch the pill: does text appear while talking, does the volatile (dimmed)
+  tail visibly get replaced as the engine revises itself, and does typing land correctly once you
+  stop? That last part is the one that matters most — a live preview that shows the right words but
+  delivers something else would be worse than no preview.
+- [ ] Turn the pill's "Show text while dictating" toggle off in Settings → General, dictate, confirm
+  the pill goes back to exactly the old waveform-and-timer look with no size change.
+  Turn it back on.
+- [ ] A very short dictation (press, say one word, press again immediately) — this exercises the
+  race where `stopListening` can fire before the live session finished opening; should fall back to
+  one-shot cleanly, no hang, no crash.
+- [ ] Optional, lower priority: pull an old `settings.json` (or just check today's still has your
+  filler-word choice, if you'd set one) after this update, to confirm the decode fallback didn't
+  reset it.
+
+## Session — 2026-08-27-a (prior)
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.

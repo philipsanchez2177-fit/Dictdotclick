@@ -70,6 +70,7 @@ If hints prove ineffective, the fallback order below is still the plan.
 |---|---|---|
 | **`SFCustomLanguageModelData`** | A heavier alternative to a word list: custom pronunciations (`CustomPronunciation`), phrase weighting (`PhraseCount`), and templates. Stronger than whisper.cpp's initial prompt ever was. Only worth it if plain `contextualStrings` proves too weak — a word list is far simpler to build a UI around. | Phase 7+, only if needed |
 | **`DictationTranscriber`** | Sibling module whose presets are named for this use case — `.shortDictation`, `.longDictation`, `.progressiveLongDictation`. Possibly better tuned than the general `SpeechTranscriber`. | Phase 7 |
+| **Streaming vocabulary hints, mid-dictation** | Phase 8's live session sets `contextualStrings` once, at session open, from the dictionary as it stood when dictation started — same rule the one-shot path already used. A word added to the dictionary *during* a long dictation won't bias that dictation. Consistent with existing behaviour, just worth naming now that sessions can run long enough for it to matter. | If a long-dictation workflow makes this a real friction point |
 
 ## Deferred by decision
 

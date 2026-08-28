@@ -235,6 +235,54 @@ is exactly the containment the protocol was for.
 That is the tool to reach for whenever a new framework's symbol names are in doubt — it turns a
 guessing loop into one lookup.
 
+### Phase 8 — live preview reuses the one-shot path as its safety net, never replaces it
+
+Live preview means transcribing continuously while audio is still arriving, using
+`SpeechTranscriber(preset: .progressiveTranscription)` instead of Phase 5's `.transcription`. The engine
+marks each result **final** (settled, will not change) or **volatile** (its current best guess,
+expect it to be replaced). Reconciling that is one rule: accumulate finals, replace volatile
+wholesale on every update. Anything cleverer — diffing, guessing at overlaps — would be
+second-guessing an engine that already has more information than this code does. That rule lives in
+`LiveTranscript.apply`, the only place it's allowed to live.
+
+**The one-shot path is not bypassed — it's the fallback.** `AudioCapture` still collects the full
+recording into one buffer exactly as it did before this phase, whether or not a live session is
+running. When dictation stops, `DictationController` asks the live session to finish; if that
+throws or comes back empty, it falls straight through to `transcriber.transcribe(samples:...)` —
+Phase 5's verified call, unchanged. A streaming bug can degrade a dictation to "slightly slower,"
+never to "failed." This is why Phase 8 was sequenced last: everything behind it keeps working
+whether or not this one holds up.
+
+**Async setup must not lose the first words.** Opening a live session (`makeLiveSession`) is async
+and takes a moment; the microphone is already recording before it returns. `AudioCapture.beginLiveFeed`
+solves this with one lock covering two things at once — handing back everything captured so far
+*and* starting to route new chunks to the session's `append`, atomically. Split into two separate
+locked calls, there would be a window where a chunk lands in neither.
+
+**Chunks are fed off the audio render thread, never on it.** `AudioCapture.process()` runs on a
+real-time thread where anything beyond arithmetic and an array append risks an audible glitch —
+the same constraint Phase 4 documented for the waveform level. A live session's `append` does format
+conversion and stream I/O, so `process()` hands each chunk to a background queue rather than calling
+`append` itself.
+
+**The streaming converter is built once per session, not once per chunk.** The one-shot path
+(`AppleTranscriber.makeBuffer`) rebuilds an `AVAudioConverter` because it converts exactly once. A
+live session reuses one `AVAudioConverter` across every `append` call instead, because the converter
+carries resampling filter state between calls — rebuilding it per chunk would introduce a small
+discontinuity at every buffer boundary, audible over a long dictation even if inaudible on any one
+chunk.
+
+**The pill's live-text row is a fixed size whether or not it has anything to show.** `RecordingHUD`
+sizes the panel once, when it appears, from whatever the view's fitting size is at that moment. A row
+that grows with the transcript, or that's conditionally inserted once the first word lands, would
+resize the panel mid-dictation. The row is always present when the setting is on; emptiness is
+opacity, not `if`.
+
+**One setting, `enableLivePreview`, defaults on.** Decision 3 named live preview as part of the
+design, not an experiment, so it ships enabled. The toggle exists as an escape hatch — off falls
+back to exactly Phase 7's pill — not because the feature is expected to need it; reliability is
+identical either way, since the fallback above is automatic regardless of the toggle.
+
 ### The recording pill must never take focus
 
 Verified in Phase 4: with the pill on screen the cursor stays in the app being dictated into, and
@@ -362,7 +410,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Done** — closed 2026-08-26. Snippets and the locked-row editor verified in use. Vocabulary-hint *effectiveness* deliberately left to real-world use; see `DEFERRED.md`. |
-| 8 | Live text preview — rolling transcription over a growing window, reconciling Whisper's revisions. Hardest part, built last. | Not started |
+| 8 | Live text preview — rolling transcription over a growing window, reconciling the engine's revisions. Hardest part, built last. | **Written, not yet compiled.** Session of 2026-08-28. See "Needs verifying on the Mac" in `SESSION_HANDOFF.md`. |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
 
 ---

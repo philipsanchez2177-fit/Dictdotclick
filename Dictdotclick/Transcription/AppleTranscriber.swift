@@ -144,16 +144,22 @@ final class AppleTranscriber: Transcriber {
     // MARK: - Helpers
 
     /// `.transcription` is the plain preset: a final transcript, no interim
-    /// results, no alternates. Phase 8's live preview will want
-    /// `.progressiveTranscription` instead — that is the preset that emits
-    /// partial results as the audio arrives.
+    /// results, no alternates. The one-shot path above uses it because a
+    /// finished recording has no use for partial results.
     ///
     /// The framework also offers `DictationTranscriber`, whose presets are
     /// named for this exact use case (`.shortDictation`, `.longDictation`).
-    /// Not adopted yet: it is a second unknown, and one is enough per phase.
+    /// Not adopted: it is a second unknown, and one is enough per phase.
     /// Recorded in `DEFERRED.md`.
     private func makeTranscriber() -> SpeechTranscriber {
         SpeechTranscriber(locale: locale, preset: .transcription)
+    }
+
+    /// Phase 8's preset: emits volatile results as audio arrives, not just a
+    /// final one at the end. Same engine, same locale — only the preset
+    /// differs from the one-shot path.
+    private func makeStreamingTranscriber() -> SpeechTranscriber {
+        SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
     }
 
     private func requestAuthorization() async throws {
@@ -204,5 +210,171 @@ final class AppleTranscriber: Transcriber {
         }
 
         return error == nil ? out : nil
+    }
+}
+
+// MARK: - Streaming (Phase 8)
+
+extension AppleTranscriber: StreamingTranscriber {
+    /// Opens a live session. `prepare()` is called first for the same reason
+    /// the one-shot path calls it: the language model must be installed
+    /// before anything is fed to the engine, and a session opened against a
+    /// missing model would fail on the first `append`, mid-dictation, which
+    /// is a far worse place to discover it than at start time.
+    func makeLiveSession(hints: [String], inputSampleRate: Double) async throws -> LiveTranscriptionSession {
+        try await prepare()
+
+        let transcriber = makeStreamingTranscriber()
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
+
+        if !hints.isEmpty {
+            let context = AnalysisContext()
+            context.contextualStrings = [.general: hints]
+            try await analyzer.setContext(context)
+        }
+
+        guard let analyzerFormat = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber]) else {
+            throw TranscriptionError.engineFailed("no compatible audio format")
+        }
+
+        guard let sourceFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: inputSampleRate,
+            channels: 1,
+            interleaved: false
+        ) else {
+            throw TranscriptionError.engineFailed("could not describe the input format")
+        }
+
+        return AppleLiveSession(
+            analyzer: analyzer,
+            transcriber: transcriber,
+            sourceFormat: sourceFormat,
+            analyzerFormat: analyzerFormat
+        )
+    }
+}
+
+/// One dictation's worth of streaming state.
+///
+/// Everything that must survive across `append` calls lives here rather than
+/// as free functions: the converter in particular carries internal filter
+/// state between chunks, and rebuilding it per chunk (the one-shot path's
+/// approach, correct there because it converts exactly once) would introduce
+/// a small resampling discontinuity at every buffer boundary — inaudible on
+/// its own, but this runs on every chunk of a long dictation.
+private final class AppleLiveSession: LiveTranscriptionSession {
+    private let analyzer: SpeechAnalyzer
+    private let transcriber: SpeechTranscriber
+    private let sourceFormat: AVAudioFormat
+    private let analyzerFormat: AVAudioFormat
+    private let converter: AVAudioConverter?
+
+    private let inputStream: AsyncStream<AnalyzerInput>
+    private let inputContinuation: AsyncStream<AnalyzerInput>.Continuation
+
+    private let (updateStream, updateContinuation) = AsyncStream<LiveTranscript>.makeStream()
+    private var transcript = LiveTranscript()
+
+    /// Consumes `transcriber.results` and folds each one into `transcript`.
+    /// Started eagerly in `init` so no result arriving before the first
+    /// `append` is missed.
+    private var resultTask: Task<Void, Never>?
+    private var startError: Error?
+
+    var updates: AsyncStream<LiveTranscript> { updateStream }
+
+    init(analyzer: SpeechAnalyzer, transcriber: SpeechTranscriber, sourceFormat: AVAudioFormat, analyzerFormat: AVAudioFormat) {
+        self.analyzer = analyzer
+        self.transcriber = transcriber
+        self.sourceFormat = sourceFormat
+        self.analyzerFormat = analyzerFormat
+        self.converter = sourceFormat == analyzerFormat ? nil : AVAudioConverter(from: sourceFormat, to: analyzerFormat)
+
+        let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
+        self.inputStream = stream
+        self.inputContinuation = continuation
+
+        // Started eagerly, before the analyzer itself: `transcriber.results`
+        // is a stream that must be listening before results can arrive, and
+        // `analyzer.start` below can begin producing them immediately.
+        beginConsumingResults()
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.analyzer.start(inputSequence: self.inputStream)
+            } catch {
+                self.startError = error
+                self.updateContinuation.finish()
+            }
+        }
+    }
+
+    private func beginConsumingResults() {
+        resultTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                for try await result in self.transcriber.results {
+                    let piece = String(result.text.characters)
+                    self.transcript.apply(piece, isFinal: result.isFinal)
+                    self.updateContinuation.yield(self.transcript)
+                }
+            } catch {
+                // Reported through `finish()`'s throw, not here — a result
+                // stream failing mid-dictation should not silently truncate
+                // what was already shown.
+            }
+            self.updateContinuation.finish()
+        }
+    }
+
+    func append(samples: [Float]) {
+        guard !samples.isEmpty else { return }
+
+        guard let source = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: AVAudioFrameCount(samples.count)) else { return }
+        source.frameLength = AVAudioFrameCount(samples.count)
+        samples.withUnsafeBufferPointer { raw in
+            source.floatChannelData?[0].update(from: raw.baseAddress!, count: samples.count)
+        }
+
+        guard let converter else {
+            inputContinuation.yield(AnalyzerInput(buffer: source))
+            return
+        }
+
+        let ratio = analyzerFormat.sampleRate / sourceFormat.sampleRate
+        let capacity = AVAudioFrameCount((Double(samples.count) * ratio).rounded(.up)) + 1
+        guard let out = AVAudioPCMBuffer(pcmFormat: analyzerFormat, frameCapacity: capacity) else { return }
+
+        var supplied = false
+        var error: NSError?
+        converter.convert(to: out, error: &error) { _, status in
+            if supplied { status.pointee = .noDataNow; return nil }
+            supplied = true
+            status.pointee = .haveData
+            return source
+        }
+
+        guard error == nil, out.frameLength > 0 else { return }
+        inputContinuation.yield(AnalyzerInput(buffer: out))
+    }
+
+    func finish() async throws -> String {
+        inputContinuation.finish()
+        do {
+            try await analyzer.finalizeAndFinishThroughEndOfInput()
+        } catch {
+            if let startError { throw startError }
+            throw TranscriptionError.engineFailed(error.localizedDescription)
+        }
+
+        // Give the result task a moment to drain the last results the flush
+        // above produced — `finalizeAndFinishThroughEndOfInput` returning
+        // does not guarantee `transcriber.results` has yielded its last item
+        // yet.
+        _ = await resultTask?.value
+
+        return transcript.finalized.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

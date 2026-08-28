@@ -50,12 +50,28 @@ final class AudioCapture {
     @ObservationIgnored private var targetFormat: AVAudioFormat?
 
     /// Collected 16 kHz mono samples. Phase 4 discards these on stop; Phase 5
-    /// hands them to Whisper.
+    /// hands them to the transcriber as a whole recording. Phase 8 keeps
+    /// collecting the same buffer even while a live session is running,
+    /// because the one-shot path is still the fallback if streaming fails.
     @ObservationIgnored private var samples: [Float] = []
     @ObservationIgnored private let samplesLock = NSLock()
 
     @ObservationIgnored private var lastPublish = Date.distantPast
     @ObservationIgnored private let publishInterval: TimeInterval = 1.0 / 20.0
+
+    /// Phase 8 — set while a live transcription session wants every chunk as
+    /// it's converted. Read and written under `samplesLock`, same as
+    /// `samples`, so a chunk always lands in exactly one of "already in the
+    /// snapshot `beginLiveFeed` returned" or "delivered to this handler" —
+    /// never both, never neither.
+    @ObservationIgnored private var liveChunkHandler: (([Float]) -> Void)?
+
+    /// Hops live chunks off the audio render thread before calling the
+    /// handler. `process()` runs on a real-time thread where anything beyond
+    /// arithmetic and an array append risks an audible glitch; a streaming
+    /// session's `append` does format conversion and stream I/O, neither of
+    /// which belongs there.
+    @ObservationIgnored private let liveQueue = DispatchQueue(label: "click.dict.Dictdotclick.livefeed", qos: .userInitiated)
 
     private init() {}
 
@@ -128,6 +144,32 @@ final class AudioCapture {
         return collected
     }
 
+    // MARK: - Live feed (Phase 8)
+
+    /// Atomically hands back everything captured so far and starts routing
+    /// every subsequent chunk to `onChunk`. One lock covers both halves on
+    /// purpose: a streaming session's setup (`makeLiveSession`) is async and
+    /// takes a moment, and audio keeps arriving the whole time. Splitting the
+    /// snapshot and the subscribe into two separate locked calls would leave
+    /// a window where a chunk converted in between is lost — heard by
+    /// neither the snapshot nor the handler.
+    func beginLiveFeed(onChunk: @escaping ([Float]) -> Void) -> [Float] {
+        samplesLock.lock()
+        let collectedSoFar = samples
+        liveChunkHandler = onChunk
+        samplesLock.unlock()
+        return collectedSoFar
+    }
+
+    /// Detaches the handler. Safe to call even after `stop()` has already
+    /// torn down the engine — there is nothing left to detach from, and this
+    /// just clears the reference so it isn't held longer than needed.
+    func endLiveFeed() {
+        samplesLock.lock()
+        liveChunkHandler = nil
+        samplesLock.unlock()
+    }
+
     // MARK: - Audio thread
 
     /// Runs on the audio thread. No allocation beyond the append, no locks
@@ -168,10 +210,17 @@ final class AudioCapture {
         for i in 0..<count { sumOfSquares += channel[i] * channel[i] }
         let rms = (sumOfSquares / Float(count)).squareRoot()
 
+        let chunk = Array(UnsafeBufferPointer(start: channel, count: count))
+
         samplesLock.lock()
-        samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
+        samples.append(contentsOf: chunk)
         let total = samples.count
+        let handler = liveChunkHandler
         samplesLock.unlock()
+
+        if let handler {
+            liveQueue.async { handler(chunk) }
+        }
 
         publish(rms: rms, totalSamples: total)
     }
