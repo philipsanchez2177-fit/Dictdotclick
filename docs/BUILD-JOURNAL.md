@@ -512,3 +512,58 @@ a word and finding it still misheard. The flag in code still means only what it 
 spec says so explicitly so a later session cannot promote it by accident.
 
 Eight phases done. The remaining two are refinement — live preview, then history.
+
+## 2026-08-28 — The hard phase, on the first try
+
+Phase 8 was named the hardest problem in the project's very first planning session, and sequenced
+dead last on purpose: if live text preview went badly, everything behind it would still be a working
+app. It shipped, was verified on the Mac the same day it was written, and compiled clean on the first
+attempt — including the one piece of API surface that was genuine guesswork,
+`SpeechTranscriber(preset: .progressiveTranscription)`, used without ever having been confirmed
+against the framework's own interface the way Phase 5's symbols had been.
+
+The design turned out to have one real idea in it and a lot of defensive plumbing around that idea.
+The real idea: Apple's engine marks every partial transcript either *final* — settled, will not
+change — or *volatile* — its current guess, expect a revision. Reconciling a stream of those into
+something displayable is one rule, accumulate finals and replace volatile wholesale, and it lives in
+exactly one place. Anything more elaborate — diffing the volatile text against what came before,
+trying to guess where an overlap starts — would be substituting this code's judgement for the
+engine's, with strictly less information to work with.
+
+Everything else in the phase exists to keep that one rule safe from timing. The recording still
+collects its full buffer the whole time, live session running or not, and stopping a dictation always
+prefers the live session's committed transcript but falls straight through to the untouched Phase 5
+one-shot path if the session throws or comes back empty. That fallback is silent on purpose — a
+streaming failure is not a dictation failure, it is this dictation taking the same path every earlier
+one took, and the user should never know the difference.
+
+One race was caught by simply asking "what happens between the hotkey press and the moment the live
+session is actually open?" — and the answer was: the microphone starts instantly, but opening a
+streaming session is async and takes a moment, so there's a window where real audio is arriving with
+nowhere to go. Wiring the two together naively would silently amputate the first words of every
+dictation from the live transcript — the display would be behind, and worse, whatever the session
+committed at the end would be missing however much audio was recorded during that gap. The fix is a
+single lock in `AudioCapture` that does two things atomically: hand back everything captured so far,
+and start routing new audio to the session, in the same critical section. Split into two separate
+calls, a chunk converted in between would belong to neither.
+
+A second bug came from a direction that had nothing to do with streaming. The new setting needed a
+field on `AppSettings`'s on-disk struct, and Swift's synthesized `Decodable` treats a missing key on a
+non-optional property as a failure for the *entire* struct — not just that field. An old
+`settings.json`, written before this session, would have failed to decode at all the moment this
+shipped, and the loader's fallback to an all-defaults struct would have quietly reset any
+`removeFillerWords` choice Philip had actually made. Nothing in the phase's own testing would have
+caught this — it only shows up on an *existing* file colliding with a *new* field, which never happens
+on a fresh install. Caught by asking what happens to old data on the way in, not by anything a build
+or a manual test would have surfaced, and fixed by decoding each field independently instead of
+trusting the synthesized initializer.
+
+The one thing that looked wrong on first use and wasn't: a short sentence spoken in one breath showed
+dimmed, uncommitted text the entire time, then flipped to solid all at once right as the recording
+stopped. That's the engine finalizing a whole segment at a natural pause rather than word by word —
+correct behaviour on an utterance with no pause in it, and expected to look different (finalizing in
+visible chunks) on a longer dictation with real gaps in it. Worth remembering as the shape a working
+system produces on this kind of input, not a symptom to chase.
+
+Nine phases done. One left: transcript history and vocabulary suggestions, resting on Phase 7's
+storage.

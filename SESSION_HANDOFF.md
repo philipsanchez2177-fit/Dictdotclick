@@ -1,120 +1,95 @@
-# SESSION HANDOFF — 2026-08-28-a
-
-## Update — Phase 8 verified 2026-08-28
-
-**Built and confirmed working on the Mac, same day it was written.** Live text preview for the pill
-— see `BUILD-SPEC.md`'s Phase 8 section for the design. Six files touched, one new:
-
-- `Dictdotclick/Transcription/LiveTranscription.swift` — **new.** `LiveTranscript` (the
-  final/volatile split and the fold-in rule) and the `StreamingTranscriber` /
-  `LiveTranscriptionSession` protocols.
-- `Dictdotclick/Transcription/AppleTranscriber.swift` — added `StreamingTranscriber` conformance and
-  `AppleLiveSession`, using `.progressiveTranscription` instead of Phase 5's `.transcription`.
-- `Dictdotclick/Audio/AudioCapture.swift` — added `beginLiveFeed` / `endLiveFeed`, the atomic
-  snapshot-and-subscribe handoff that stops async session setup from losing the first words.
-- `Dictdotclick/Hotkey/DictationController.swift` — `startListening`/`stopListening` now run a live
-  session alongside the recording; `stopListening` prefers the session's committed text and falls
-  back to the untouched one-shot path on any failure or empty result.
-- `Dictdotclick/Storage/AppSettings.swift` — new `enableLivePreview` toggle, default on. Decode is
-  now hand-written (`decodeIfPresent` per field) rather than synthesized, so a settings.json from
-  before this field existed doesn't lose the user's `removeFillerWords` choice on upgrade.
-- `Dictdotclick/UI/HUD/RecordingPillView.swift` — a fixed-size second row showing finalized text in
-  the normal colour and the engine's current guess dimmed below it.
-- `Dictdotclick/UI/Settings/GeneralSettingsView.swift` — the toggle's card.
-
-**Verified on the Mac 2026-08-28:**
-
-- [x] `Dictdotclick.xcodeproj` builds clean with the new file and the changed ones. First real
-  compile of `.progressiveTranscription` and the un-filtered `transcriber.results` loop — both held
-  up on the first try, no symbol-name corrections needed.
-- [x] Text appears in the pill while talking. First test showed the whole sentence dim, then
-  turning to normal colour right as dictation stopped — that's correct behaviour for one continuous
-  utterance with no mid-sentence pause (the engine finalizes a whole segment at once, at a pause or
-  the end), not a bug. A longer dictation with natural pauses should show it finalizing in visible
-  chunks along the way rather than all at once at the end.
-- [x] Delivered text matched what the pill showed.
-- [x] Toggle off/on in Settings → General confirmed: off falls back to exactly the old
-  waveform-and-timer pill, on brings the live text back, no size hiccup either way.
-
-**Not explicitly stress-tested, believed safe by design:** a very short dictation (press, one word,
-press again immediately) exercises the race where `stopListening` fires before the live session
-finished opening. `beginLivePreview`'s `Task.isCancelled` check and `finishDictation`'s automatic
-fallback to the one-shot path should make this a non-issue either way — worth trying once if it
-comes up naturally, not worth a dedicated test.
-
-**Not explicitly checked:** an old `settings.json` from before this field existed decoding without
-losing `removeFillerWords`. Low risk — the decode fallback is straightforward — but flag it if a
-filler-word preference ever appears to reset unexpectedly.
-
-## Session — 2026-08-27-a (prior)
+# SESSION HANDOFF — 2026-08-28-b
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to watch for next time.
-Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-26-a.md`.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-28-a.md`.
 
 ## What happened this session
 
-**Phase 7 is verified and closed.** Snippets expand correctly in real use — saying "my address"
-types the stored address — and the dictionary survives relaunch. Eight of ten phases done; the
-remaining two are refinement.
+**Phase 8 shipped and is verified — nine of ten phases done.** Live text preview: the pill now shows
+words while you're still talking instead of only after you stop. This was the phase the project
+sequenced deliberately last, called out from the very first planning session as the hardest problem —
+so it earns its own entry in `docs/BUILD-JOURNAL.md`.
 
-**The session's work was one complaint, fixed twice.** Entering a word or snippet had no way to
-"lock it in": no button, no visible effect from Return. The data was safe — the store saves on every
-keystroke — but there was no way to know that without dictating and watching.
+The design centres on one small rule (`LiveTranscript.apply`): the engine marks every result final or
+volatile, and reconciling that is "accumulate finals, replace volatile wholesale" — nothing cleverer,
+because anything cleverer would be second-guessing an engine that has more information than this code
+does. Everything else in the phase exists to protect that rule from the real world:
 
-**The first fix was the wrong shape.** It kept autosave and added acknowledgement: a green tick per
-row once usable, a "Saved" flash on Return, a row count per card. It addressed the words of the
-complaint and not the complaint. The reply was precise: *"it just kind of stays live in the window
-and the cursor stays in there... there needs to be some way to confirm, yep, that's what I want in
-there."*
+- **The one-shot path from Phase 5 is the fallback, not replaced.** `AudioCapture` still records the
+  full buffer regardless of whether a live session is running. `DictationController` prefers the live
+  session's committed text on stop, but falls straight through to a full one-shot transcription if the
+  session throws or comes back empty — `try?`, deliberately silent, because a streaming bug should
+  degrade a dictation to "slightly slower," never to "failed."
+- **A real race was caught and fixed before it ever reached the Mac.** Opening a live session is async
+  and takes a moment; the microphone is already recording before it returns. Naively wiring new audio
+  to the session would silently drop the first words of every dictation during that setup window.
+  `AudioCapture.beginLiveFeed` closes it with one lock covering two things at once — handing back
+  everything captured so far *and* starting to route new audio to the session — so nothing lands in
+  neither bucket.
+- **A second bug was caught the same way, in a file that looks unrelated.** Adding the
+  `enableLivePreview` setting meant `AppSettings`'s `Stored` struct gained a field. Synthesized
+  `Decodable` treats a missing key on a non-optional property as a decode failure for the *whole*
+  struct — which would have silently reset an existing `removeFillerWords` choice back to its default
+  the moment someone updated past this point. Rewritten to decode each field independently
+  (`decodeIfPresent`) before that could ever bite.
 
-A tick beside a field with a caret still in it does not read as committed, because the field is still
-a field. What was missing was not confirmation — it was **closure**.
+**Verified on the Mac same day.** Build succeeded on the first try — `.progressiveTranscription` and
+an unfiltered `transcriber.results` loop were new API surface, guessed from the framework's shape
+rather than confirmed the way Phase 5's symbols were, and both held up. Text appeared in the pill live,
+matched the delivered transcript, and the toggle correctly fell back to the plain waveform-and-timer
+pill when off. One thing that looked like a bug at first and wasn't: a short, unbroken sentence stayed
+dimmed the *entire* time and only turned solid right at the end — correct, because the engine finalizes
+a whole segment at a pause or at the end of the utterance, not word by word. Worth remembering if it
+comes up again; a longer dictation with natural pauses should show it finalizing in visible chunks.
 
-**The second fix changed the shape.** Rows now have two states and only one is editable:
-
-| State | Looks like |
-|---|---|
-| **Locked** (resting) | Plain dimmed text on a tinted background. Not a field. This is what "stored" looks like. |
-| **Editing** | Real fields, entered via pencil or click, left via Return or **Done**. |
-
-Nothing about *when* the write happens changed. The interface just stopped pretending a row was open
-when it wasn't. Four details fell out of that shape, each fixing something the first pass had wrong:
-new rows open in editing (a locked blank row is unfillable); committing an empty row deletes it, so
-Return also cancels a row added by mistake; focus is set on the next runloop tick, because the field
-does not exist until the view rebuilds; and a snippet's multi-line expansion cannot submit on Return,
-so **Done** is its exit.
-
-**Phase 7 closed without the measurement it nominally owed.** Whether vocabulary hints *improve*
-recognition was never tested. Philip's call, and the right one: mishearings surface over weeks of real
-dictation, not on demand, and a contrived one-word before/after would answer less than actual use.
-Recorded honestly rather than marked verified — `DEFERRED.md` carries it as *open over time, not
-blocking*, with the event that reopens it.
+**Finding the actual project folder took most of the debugging time, not the code.** Philip's live
+Xcode project isn't at the path this skill's own instructions might suggest — it's nested one level
+deeper, at `~/Documents/Claude/Projects/Dictdotclick/Dictdotclick` (the outer `Dictdotclick` folder is
+a separate Cowork-synced folder, not a git clone). Worth remembering for next time so this doesn't cost
+another round of `find` commands.
 
 ## Needs verifying on the Mac
 
-**Nothing outstanding.** No uncompiled Swift exists in the repo.
+**Nothing outstanding from Phase 8's core functionality** — build, live text, delivery match, and the
+toggle are all confirmed above.
 
-Confirmed 2026-08-27:
+Two lower-priority items from Phase 8, not explicitly tested, believed safe by design rather than
+verified:
 
-- [x] Snippets expand in real use; the dictionary persists across relaunch.
-- [x] The locked-row editor reads as committed — Philip's original complaint is resolved.
+- [ ] A very short dictation (press, one word, press again immediately) — exercises the race where
+      `stopListening` can fire before the live session finished opening. `beginLivePreview`'s
+      `Task.isCancelled` check and `finishDictation`'s automatic fallback should make this a non-issue;
+      worth trying if it comes up naturally, not worth a dedicated test.
+- [ ] An old `settings.json` (from before `enableLivePreview` existed) decoding without losing a
+      `removeFillerWords` choice. Low risk given the fix described above, but flag it if a filler-word
+      preference ever appears to silently reset.
 
-Confirmed earlier and still true: dictation into TextEdit pastes at the cursor; `contextualStrings`
-and `setContext` compile; dictation cannot start while a password field has focus.
+Confirmed 2026-08-28: `Dictdotclick.xcodeproj` builds clean with all of Phase 8's new and changed
+files; the pill shows live text while dictating; delivered text matches what the pill showed; the
+live-preview toggle correctly switches the pill between the old and new look with no size change.
 
-Optional and still unreached, low value: the mid-dictation secure-input toast. Worst case if wrong,
-the user presses ⌘V — which the toast says anyway.
+Confirmed earlier and still true: snippets expand in real use and the dictionary persists across
+relaunch; the locked-row editor reads as committed; dictation into TextEdit pastes at the cursor;
+`contextualStrings` and `setContext` compile; dictation cannot start while a password field has focus.
 
 ## Gotchas / things to watch for
 
-- **Acknowledgement is not closure.** A confirmation attached to a control that stays live leaves the
-  user still holding it. This cost a full round trip. Phase 9's history pane will hit the same
-  question — the rule is in `BUILD-SPEC.md`.
-- **`supportsVocabularyHints = true` means hints are passed, never that they help.** Unmeasured by
-  choice. Do not promote the claim without evidence; the fallback order is still in `DEFERRED.md`.
-- **Any new input UI needs the locked/editing split**, not a status badge bolted onto a live field.
-- Earlier gotchas still hold: porting logic to Python tests the algorithm and never the Swift;
+- **The project's actual location on Philip's Mac** is
+  `~/Documents/Claude/Projects/Dictdotclick/Dictdotclick` — one level deeper than the outer
+  `Dictdotclick` folder, which is a separate Cowork-synced folder and not the git clone. Point Philip
+  there directly rather than re-deriving it with `find` next time.
+- **Every failure in the live-preview path is silent by design**, all the way from session-open
+  failure to a results-stream error. That was the right call for reliability — a streaming bug must
+  never surface as a broken dictation — but it means a future regression in this path would show up
+  only as "the pill went quiet," with no `lastIssue`, no log, nothing. If that's ever reported, the
+  first place to look is `DictationController.beginLivePreview`'s `catch` block.
+- **A struct gaining a field is a decode hazard, not just an addition.** `AppSettings.Stored`'s custom
+  `init(from:)` is the pattern going forward — any future field on a `Codable` settings struct should
+  use `decodeIfPresent` rather than relying on synthesized decoding, or an old file on disk will reset
+  every other field in the same struct back to default the moment it fails to find one new key.
+- Earlier gotchas still hold: an editor owes the user a state that visibly is not editable —
+  acknowledgement is not closure; porting logic to Python tests the algorithm and never the Swift;
   snippets are where private data lands by design; every posted keystroke needs
   `HotkeyMonitor.syntheticMarker`; secure input blocks reading as well as writing; never paste a
   fenced code block into Terminal; read the SDK rather than guessing a symbol name twice.
@@ -123,18 +98,13 @@ the user presses ⌘V — which the toast says anyway.
 
 - **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
 - **Working tree:** clean.
-- **Next step: Phase 8** — live text preview in the pill, and the last hard problem. Today the app
-  records everything, then transcribes once. Live preview means transcribing continuously over
-  growing audio and reconciling the engine revising itself mid-sentence. `SpeechTranscriber` already
-  has the preset — `.progressiveTranscription` rather than the current `.transcription`, noted in
-  `AppleTranscriber.makeTranscriber`. Apple handles the reconciliation; the work is feeding audio
-  incrementally and rendering revisions without flicker.
-- **Sequenced last on purpose.** If Phase 8 goes badly, everything behind it still works. Do not let
-  a streaming failure destabilise the one-shot path that is currently verified.
-- **Then Phase 9** — transcript history and vocabulary suggestions, both resting on Phase 7's storage.
-- **`BUILD-SPEC.md` and `DEFERRED.md` were both updated this session and are current.** BUILD-SPEC
-  gained the locked-row rule and the honest wording on hint effectiveness; DEFERRED gained an
-  "open over time, not blocking" section.
+- **`BUILD-SPEC.md` and `DEFERRED.md` were both updated this session and are current.** BUILD-SPEC's
+  Phase 8 row is marked done and verified; a new decision-record section documents the reconciliation
+  rule, the fallback design, the render-thread/backlog handling, and the fixed-size pill row. DEFERRED
+  gained a note that live-session vocabulary hints are set once at session start, same rule the
+  one-shot path already used.
+- **Next step: Phase 9** — transcript history and background vocabulary suggestions with
+  approve/dismiss, resting on Phase 7's dictionary storage. Nothing has been designed yet.
 - **No open questions.**
 - **Standing reminder:** explain before building, plain English, define jargon on first use, keep
   responses tight.
