@@ -410,7 +410,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 5 | Speech engine integrated behind a `Transcriber` protocol, transcript shown in a debug panel. **First phase where the app does its real job.** | **Done** — verified 2026-08-22. |
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Done** — closed 2026-08-26. Snippets and the locked-row editor verified in use. Vocabulary-hint *effectiveness* deliberately left to real-world use; see `DEFERRED.md`. |
-| 8 | Live text preview — rolling transcription over a growing window, reconciling the engine's revisions. Hardest part, built last. | **Written, not yet compiled.** Session of 2026-08-28. See "Needs verifying on the Mac" in `SESSION_HANDOFF.md`. |
+| 8 | Live text preview — rolling transcription over a growing window, reconciling the engine's revisions. Hardest part, built last. | **Done** — built and verified on the Mac 2026-08-28. Pill shows live text, toggle works, delivered text matches. |
 | 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
 
 ---

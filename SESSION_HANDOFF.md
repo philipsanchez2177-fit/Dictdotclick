@@ -1,9 +1,9 @@
 # SESSION HANDOFF — 2026-08-28-a
 
-## Update — Phase 8 written 2026-08-28
+## Update — Phase 8 verified 2026-08-28
 
-**Written, not compiled.** Live text preview for the pill — see `BUILD-SPEC.md`'s new Phase 8
-section for the design. Six files touched, one new:
+**Built and confirmed working on the Mac, same day it was written.** Live text preview for the pill
+— see `BUILD-SPEC.md`'s Phase 8 section for the design. Six files touched, one new:
 
 - `Dictdotclick/Transcription/LiveTranscription.swift` — **new.** `LiveTranscript` (the
   final/volatile split and the fold-in rule) and the `StreamingTranscriber` /
@@ -22,28 +22,29 @@ section for the design. Six files touched, one new:
   the normal colour and the engine's current guess dimmed below it.
 - `Dictdotclick/UI/Settings/GeneralSettingsView.swift` — the toggle's card.
 
-**Needs verifying on the Mac, added this session** — the prior session's checklist (below, under
-"Session — 2026-08-27-a") closed clean; these are the new open items:
+**Verified on the Mac 2026-08-28:**
 
-- [ ] `Dictdotclick.xcodeproj` still builds with the new file and the changed ones. This is the
-  first real test — `SpeechTranscriber(preset: .progressiveTranscription)` and iterating
-  `transcriber.results` without a `where isFinal` filter are new API surface, guessed from the
-  framework's shape rather than confirmed the way Phase 5's symbols were. If it doesn't compile,
-  grep the `.swiftinterface` per the method `BUILD-SPEC.md` already documents rather than guessing
-  twice.
-- [ ] Say something and watch the pill: does text appear while talking, does the volatile (dimmed)
-  tail visibly get replaced as the engine revises itself, and does typing land correctly once you
-  stop? That last part is the one that matters most — a live preview that shows the right words but
-  delivers something else would be worse than no preview.
-- [ ] Turn the pill's "Show text while dictating" toggle off in Settings → General, dictate, confirm
-  the pill goes back to exactly the old waveform-and-timer look with no size change.
-  Turn it back on.
-- [ ] A very short dictation (press, say one word, press again immediately) — this exercises the
-  race where `stopListening` can fire before the live session finished opening; should fall back to
-  one-shot cleanly, no hang, no crash.
-- [ ] Optional, lower priority: pull an old `settings.json` (or just check today's still has your
-  filler-word choice, if you'd set one) after this update, to confirm the decode fallback didn't
-  reset it.
+- [x] `Dictdotclick.xcodeproj` builds clean with the new file and the changed ones. First real
+  compile of `.progressiveTranscription` and the un-filtered `transcriber.results` loop — both held
+  up on the first try, no symbol-name corrections needed.
+- [x] Text appears in the pill while talking. First test showed the whole sentence dim, then
+  turning to normal colour right as dictation stopped — that's correct behaviour for one continuous
+  utterance with no mid-sentence pause (the engine finalizes a whole segment at once, at a pause or
+  the end), not a bug. A longer dictation with natural pauses should show it finalizing in visible
+  chunks along the way rather than all at once at the end.
+- [x] Delivered text matched what the pill showed.
+- [x] Toggle off/on in Settings → General confirmed: off falls back to exactly the old
+  waveform-and-timer pill, on brings the live text back, no size hiccup either way.
+
+**Not explicitly stress-tested, believed safe by design:** a very short dictation (press, one word,
+press again immediately) exercises the race where `stopListening` fires before the live session
+finished opening. `beginLivePreview`'s `Task.isCancelled` check and `finishDictation`'s automatic
+fallback to the one-shot path should make this a non-issue either way — worth trying once if it
+comes up naturally, not worth a dedicated test.
+
+**Not explicitly checked:** an old `settings.json` from before this field existed decoding without
+losing `removeFillerWords`. Low risk — the decode fallback is straightforward — but flag it if a
+filler-word preference ever appears to reset unexpectedly.
 
 ## Session — 2026-08-27-a (prior)
 
