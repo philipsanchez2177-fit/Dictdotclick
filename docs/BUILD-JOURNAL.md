@@ -567,3 +567,29 @@ system produces on this kind of input, not a symptom to chase.
 
 Nine phases done. One left: transcript history and vocabulary suggestions, resting on Phase 7's
 storage.
+
+## 2026-08-31 — Leaving Xcode behind
+
+Ten phases had shipped, all of them run and verified the same way: press Play in Xcode, watch the app
+launch under the debugger. That's a fine loop for building, but it's not what "having the app" means
+— it means an icon in Applications that opens on its own, with nothing else running.
+
+The gap between those two is smaller than it sounds but easy to trip on the first time. Xcode's
+default Debug scheme doesn't produce anything meant to be exported; the deliverable is either a
+Release build buried in `DerivedData`, or a proper Archive. Philip built one and then, reasonably,
+couldn't find the resulting `.app` in Finder — the build products live somewhere Finder doesn't
+surface by default, under `~/Library/Developer/Xcode/DerivedData/`. Product → Show Build Folder in
+Finder is the door back to it, and once open the file was exactly where it should be.
+
+The part worth writing down is what *didn't* break. Accessibility permissions in macOS are tied to an
+app's code signature, and `BUILD-SPEC.md` already carries a hard-won note from 2026-08-19 about that:
+without a stable development team signing the build, every rebuild produces a signature macOS has
+never seen, silently orphaning the old permission grant. That fix — committing `DEVELOPMENT_TEAM` into
+`project.pbxproj` — was made for the Debug/Xcode loop, but it paid off here too. The standalone
+Release build carried the same stable signature, so the global hotkey worked on first launch with no
+re-granting needed. A decision made for one problem, twelve days earlier, quietly solved a second one
+it wasn't aimed at.
+
+Nothing shipped in code this session. What changed is that Dictdotclick is now, for the first time,
+something Philip can actually use day to day rather than something he runs from inside a development
+tool. Whatever comes next is expected to be debugging surfaced by that real use, not new phases.

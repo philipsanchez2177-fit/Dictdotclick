@@ -62,6 +62,7 @@ a rare word. The API is wired; its effect is unmeasured.
 | **Do vocabulary hints actually improve recognition?** | Phase 7 closed 2026-08-26 without measuring it. Mishearings surface over weeks of dictation, not on demand, and a contrived one-word test would answer less than real use. The plumbing is verified; the effect is not. | Philip adding a word and finding it *still* misheard afterwards. That is the negative result, and it is worth acting on rather than living with. |
 | **More snippets, more vocabulary** | Expected to grow as real friction shows up. Not a phase; the editor already supports it. | Nothing — this is just use. |
 | **Does Phase 9's suggestion heuristic surface real words, or mostly noise?** | Written 2026-08-31, not yet run against real dictations. Same reasoning as the vocabulary-hints question above — needs weeks of accumulated history, not a contrived test. | A run of suggestions that are mostly dismiss-clicks rather than real recurring words. If that happens, tighten `minimumOccurrences` or the capitalization rule in `VocabularySuggestionEngine` before considering a different approach. |
+| **Auto-copy Release build to `/Applications` on every build** | Philip built and located the standalone `.app` manually on 2026-08-31 and it worked fine. A build-phase script would save the manual export/Finder-hunt step but isn't needed yet. | Philip finding the manual export step annoying after doing it a few more times. |
 
 If hints prove ineffective, the fallback order below is still the plan.
 

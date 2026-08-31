@@ -1,66 +1,47 @@
-# SESSION HANDOFF — 2026-08-31-a
+# SESSION HANDOFF — 2026-08-31-b
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
-outstanding work. This file is scoped to what happened this session and what to pick up next. Prior
-handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-28-c.md`.
-
-## Pick up here
-
-**Phase 9 is built and verified on the Mac.** All six Mac-verification items passed: history rows
-appear per dictation, per-row delete and confirmed "Clear All" both work, a failed dictation produces
-no row, the suggestion heuristic correctly waits for a word to recur across two separate dictations
-before proposing it, approve moves a word into the Dictionary vocabulary list, and dismiss makes a
-word stop being suggested even after it recurs again. Tested live with "Paul" as the recurring word.
-
-Ten of ten phases now done. Nothing is queued next — Phase 9 was the last one on the `BUILD-SPEC.md`
-roster. Whatever comes after this is new scope Philip hasn't defined yet.
+outstanding work. This file is scoped to what happened this session and what to watch for next time.
+Prior handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-31-a.md`.
 
 ## What happened this session
 
-Built Phase 9: transcript history, and background vocabulary suggestions with approve/dismiss.
+No code changes. Philip built and ran Dictdotclick outside Xcode for the first time, and confirmed
+it works standalone.
 
-- **History** (`TranscriptHistoryStore`) appends one row per finished dictation, from the same split
-  `DictationController` already computed for delivery — the raw heard text and the post-dictionary
-  delivered text. Capped at 500 entries, oldest dropped first. Settings pane lists newest-first, with
-  per-row delete and a confirmed "Clear All".
-- **Suggestions** (`VocabularySuggestionEngine` + `VocabularySuggestionStore`) scan history for
-  capitalized, mid-sentence words recurring across at least two separate dictations, excluding
-  anything already in the dictionary or already dismissed. Approve adds the word to
-  `DictionaryStore`; dismiss remembers a "no" so it doesn't re-ask. The heuristic and its reasoning
-  are written up in `BUILD-SPEC.md` under "Phase 9".
-- `HistorySettingsView` rebuilt with a suggestions card above a history card — suggestions on top
-  because they're the one thing on the pane asking for a click; buried under 500 history rows they'd
-  never be seen.
+- Explained that Xcode is only needed to build the app, not to run it — running via the Play button
+  keeps Xcode open because Xcode owns that debug process; a standalone `.app` doesn't need it.
+- Walked through building a Release/Archive build and exporting the `.app` (Product → Archive →
+  Organizer → Distribute App → Copy App, or Product → Show Build Folder in Finder for a plain
+  Release build).
+- Philip built it, then couldn't find the resulting `.app` in Finder. Pointed him at Product → Show
+  Build Folder in Finder, the Archive Organizer, Spotlight, and the `DerivedData` path directly.
+- **Confirmed working:** he found the app, launched it outside Xcode, and the global hotkey worked —
+  meaning the Accessibility grant (tied to the stable `DEVELOPMENT_TEAM` signature per
+  `BUILD-SPEC.md`) carried over to the standalone build without needing to be re-granted.
 
-Full design reasoning — why the heuristic is this conservative, why approval needed no state of its
-own but dismissal does — is in `BUILD-SPEC.md`, not repeated here.
+This is the first time the app has been run as a real standalone `.app` rather than via Xcode's
+debugger. Worth noting for the build journal.
 
 ## Needs verifying on the Mac
 
-**Empty — everything from this session was verified live on the Mac, 2026-08-31.** `BUILD SUCCEEDED`,
-and all six behavioral checks passed:
+Nothing outstanding.
 
-| File | Verified |
-|---|---|
-| `Dictdotclick/History/TranscriptEntry.swift` | Compiles as part of the target — no errors. |
-| `Dictdotclick/History/TranscriptHistoryStore.swift` | Three dictations each produced a new row, newest first. Per-row delete and confirmed "Clear All" both work; empty state reads correctly after clearing. |
-| `Dictdotclick/History/VocabularySuggestionEngine.swift` | "Paul" said in two separate dictations ("Paul is really irritating." / "I think Paul is coming over later.") produced a suggestion; a single dictation alone did not. |
-| `Dictdotclick/History/VocabularySuggestionStore.swift` | Approve moved "Paul" into Dictionary → Vocabulary. Dismiss made a word stop appearing as a suggestion even after it recurred again. |
-| `Dictdotclick/UI/Settings/HistorySettingsView.swift` | Suggestions card and History card both render correctly, Liquid Glass styling matches the Dictionary pane. |
-| `Dictdotclick/Hotkey/DictationController.swift` (edit) | A dictation with nothing recognisable produced no history row. |
+## Gotchas / things to watch for
+
+None new. The standing note from `BUILD-SPEC.md` still applies going forward: if Accessibility ever
+silently stops working after a rebuild, it's almost always a signature mismatch — remove the stale
+entry in System Settings → Privacy & Security → Accessibility and use **Request Access** in-app to
+re-register the current build.
 
 ## Anything to know before continuing
 
-Nothing carried forward as a gotcha. The suggestion heuristic's *effectiveness* is deliberately
-unmeasured — same call Phase 7 made about vocabulary hints — and is tracked in `DEFERRED.md` rather
-than being a blocking question here.
-
-## State
-
 - **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
 - **Working tree:** clean.
-- **`BUILD-SPEC.md`:** updated — Phase 9 row changed to "Done — verified on the Mac, 2026-08-31."
-- **`DEFERRED.md`:** one row remains in "Open over time, not blocking" for the suggestion heuristic's
-  unmeasured *effectiveness* (does it surface real words vs. mostly noise) — that's a question about
-  quality over time, not a bug, and is expected to stay open for weeks.
-- **No open questions for Philip.**
+- **Next session is expected to be debugging** — Philip flagged that whatever comes up next will
+  likely be fixing something he hits while using the standalone build day-to-day, not new feature
+  work. No specific bug reported yet.
+- Not offered/declined this session: an automatic build-phase script to copy the Release build
+  straight to `/Applications` on every build. Still on the table if Philip wants it later — see
+  `DEFERRED.md` candidate below.
+- No open questions for Philip.
