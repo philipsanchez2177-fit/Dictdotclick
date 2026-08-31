@@ -3,7 +3,7 @@
 **Read this first, every session.** This file owns current architecture and state.
 `DEFERRED.md` owns outstanding work. `SESSION_HANDOFF.md` owns what happened last session.
 
-Last updated: 2026-08-19
+Last updated: 2026-08-31
 
 ---
 
@@ -404,11 +404,16 @@ word recurs; approvals need no separate memory, because an approved word is alre
 `DictionaryStore.hints` and the engine's own `known` filter excludes it from future suggestions on
 that basis.
 
-**Unmeasured, like Phase 7's vocabulary-hint effectiveness before it.** Whether this heuristic actually
-surfaces words worth adding, versus mostly generating dismiss-clicks, is not something a contrived test
-in this container can answer — it needs real dictations accumulating on the Mac. Same call as Phase 7:
-better answered by weeks of use than by one on-demand check. If it turns out mostly noisy, the fallback
-is tightening `minimumOccurrences` or the capitalization rule, not rebuilding the approach.
+**Verified on the Mac, 2026-08-31.** Saying "Paul" in two separate, stopped-and-restarted dictations
+correctly produced "Paul" as a suggestion; a single dictation alone did not. Approve moved it into
+`DictionaryStore`'s vocabulary list; dismiss (tried on a different word) made it stop being suggested
+even after it recurred again. History rows, per-row delete, and confirmed "Clear All" all verified too.
+
+**Still unmeasured: whether the heuristic surfaces words worth adding over real use, versus mostly
+generating dismiss-clicks.** The plumbing is confirmed; its long-run signal quality is not something a
+short test can answer — same call Phase 7 made about vocabulary-hint effectiveness. If it turns out
+mostly noisy, the fallback is tightening `minimumOccurrences` or the capitalization rule, not
+rebuilding the approach. Tracked in `DEFERRED.md`.
 
 ---
 
@@ -448,7 +453,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Done** — closed 2026-08-26. Snippets and the locked-row editor verified in use. Vocabulary-hint *effectiveness* deliberately left to real-world use; see `DEFERRED.md`. |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling the engine's revisions. Hardest part, built last. | **Done** — built and verified on the Mac 2026-08-28. Pill shows live text, toggle works, delivered text matches. |
-| 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Written, not yet built on the Mac |
+| 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | **Done** — verified on the Mac 2026-08-31 |
 
 ---
 

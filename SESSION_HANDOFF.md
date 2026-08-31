@@ -6,13 +6,14 @@ handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-28-c.md`.
 
 ## Pick up here
 
-**Phase 9 is written, not yet built on the Mac.** Five files: four new (transcript history storage,
-the suggestion engine, the suggestion approve/dismiss store, and the models file) plus a small edit to
-`DictationController` to append a history row after each delivered dictation, and a full rewrite of
-`HistorySettingsView` (previously a Phase 1 placeholder). Nothing else touched.
+**Phase 9 is built and verified on the Mac.** All six Mac-verification items passed: history rows
+appear per dictation, per-row delete and confirmed "Clear All" both work, a failed dictation produces
+no row, the suggestion heuristic correctly waits for a word to recur across two separate dictations
+before proposing it, approve moves a word into the Dictionary vocabulary list, and dismiss makes a
+word stop being suggested even after it recurs again. Tested live with "Paul" as the recurring word.
 
-Next step is Philip pulling and building on the Mac — see the checklist below. No code review or
-design questions are pending; this was a self-contained phase built end to end in one session.
+Ten of ten phases now done. Nothing is queued next — Phase 9 was the last one on the `BUILD-SPEC.md`
+roster. Whatever comes after this is new scope Philip hasn't defined yet.
 
 ## What happened this session
 
@@ -36,17 +37,17 @@ own but dismissal does — is in `BUILD-SPEC.md`, not repeated here.
 
 ## Needs verifying on the Mac
 
-None of this has been compiled. All five files below need a build before anything on this list can
-move to "verified."
+**Empty — everything from this session was verified live on the Mac, 2026-08-31.** `BUILD SUCCEEDED`,
+and all six behavioral checks passed:
 
-| File | What to check | Success looks like |
-|---|---|---|
-| `Dictdotclick/History/TranscriptEntry.swift` | Compiles as part of the target. | No build errors attributable to this file. |
-| `Dictdotclick/History/TranscriptHistoryStore.swift` | Dictate something, then open Settings → History. | The dictation appears as a new row, newest first. |
-| `Dictdotclick/History/VocabularySuggestionEngine.swift` | Dictate the same capitalized name (not sentence-initial) in two separate dictations, e.g. "I talked to Marcus today." then later "Marcus called back." | "Marcus" appears in the Suggestions card after the second one, and not after the first. |
-| `Dictdotclick/History/VocabularySuggestionStore.swift` | Click the checkmark on a suggestion, then reopen Settings → Dictionary. Separately, dismiss a different suggestion, dictate the same word again, and confirm it does not reappear. | Approved word shows up in the Vocabulary list. Dismissed word stays gone across a fresh occurrence. |
-| `Dictdotclick/UI/Settings/HistorySettingsView.swift` | Open Settings → History with some entries present. Try per-row delete and "Clear All" (including cancelling the confirmation). | Layout matches the Dictionary pane's card style (Liquid Glass, locked-looking rows). Delete removes one row; Clear All empties the list only after confirming; cancel leaves it untouched. |
-| `Dictdotclick/Hotkey/DictationController.swift` (edit) | Covered by the `TranscriptHistoryStore` check above — a dictation that fails to recognise anything should **not** produce a history row. | Say nothing usable into the mic, stop; no new row appears. |
+| File | Verified |
+|---|---|
+| `Dictdotclick/History/TranscriptEntry.swift` | Compiles as part of the target — no errors. |
+| `Dictdotclick/History/TranscriptHistoryStore.swift` | Three dictations each produced a new row, newest first. Per-row delete and confirmed "Clear All" both work; empty state reads correctly after clearing. |
+| `Dictdotclick/History/VocabularySuggestionEngine.swift` | "Paul" said in two separate dictations ("Paul is really irritating." / "I think Paul is coming over later.") produced a suggestion; a single dictation alone did not. |
+| `Dictdotclick/History/VocabularySuggestionStore.swift` | Approve moved "Paul" into Dictionary → Vocabulary. Dismiss made a word stop appearing as a suggestion even after it recurred again. |
+| `Dictdotclick/UI/Settings/HistorySettingsView.swift` | Suggestions card and History card both render correctly, Liquid Glass styling matches the Dictionary pane. |
+| `Dictdotclick/Hotkey/DictationController.swift` (edit) | A dictation with nothing recognisable produced no history row. |
 
 ## Anything to know before continuing
 
@@ -56,10 +57,10 @@ than being a blocking question here.
 
 ## State
 
-- **Branch:** `claude/init-ayj2tg`. Working tree has the Phase 9 changes, not yet pushed as of writing
-  this file — pushed by the end of this session.
-- **`BUILD-SPEC.md`:** updated — Phase 9 row changed to "Written, not yet built on the Mac", and a new
-  "Phase 9" design section added.
-- **`DEFERRED.md`:** updated — one row added to "Open over time, not blocking" for the suggestion
-  heuristic's unmeasured effectiveness.
+- **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
+- **Working tree:** clean.
+- **`BUILD-SPEC.md`:** updated — Phase 9 row changed to "Done — verified on the Mac, 2026-08-31."
+- **`DEFERRED.md`:** one row remains in "Open over time, not blocking" for the suggestion heuristic's
+  unmeasured *effectiveness* (does it surface real words vs. mostly noise) — that's a question about
+  quality over time, not a bug, and is expected to stay open for weeks.
 - **No open questions for Philip.**
