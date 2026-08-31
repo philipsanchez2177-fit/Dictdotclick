@@ -54,16 +54,24 @@ another round of `find` commands.
 **Nothing outstanding from Phase 8's core functionality** — build, live text, delivery match, and the
 toggle are all confirmed above.
 
-Two lower-priority items from Phase 8, not explicitly tested, believed safe by design rather than
-verified:
+Two items carried from Phase 8 as "believed safe by design" were closed out by code audit rather
+than a Mac test — reading the actual control flow line by line rather than trusting the comment
+describing it:
 
-- [ ] A very short dictation (press, one word, press again immediately) — exercises the race where
-      `stopListening` can fire before the live session finished opening. `beginLivePreview`'s
-      `Task.isCancelled` check and `finishDictation`'s automatic fallback should make this a non-issue;
-      worth trying if it comes up naturally, not worth a dedicated test.
-- [ ] An old `settings.json` (from before `enableLivePreview` existed) decoding without losing a
-      `removeFillerWords` choice. Low risk given the fix described above, but flag it if a filler-word
-      preference ever appears to silently reset.
+- [x] **The short-dictation race.** Traced `startListening` → `stopListening` end to end. If stop
+      fires before `makeLiveSession` returns, `liveSession` is still `nil` at that point, so
+      `finishDictation` gets `nil` and falls back to one-shot transcription over the full buffer
+      `AudioCapture.stop()` already captured — no audio is lost. When the delayed setup task resumes,
+      its `Task.isCancelled` check catches the cancellation, closes the session it just opened, and
+      returns without ever calling `beginLiveFeed`. `endLiveFeed()` is confirmed a safe no-op when the
+      handler was never registered. No test needed; the logic cannot lose a word in this window.
+- [x] **Old `settings.json` decoding.** Confirmed `AppSettings.Stored.init(from:)` decodes each field
+      independently via `decodeIfPresent(...) ?? default`, so a file missing `enableLivePreview`
+      (written before Phase 8) still decodes `removeFillerWords` from what's actually on disk — the
+      failure mode a synthesized decoder would have (one missing key resets the whole struct) does
+      not apply here.
+
+Neither required running the app; both were provably correct from the code alone.
 
 Confirmed 2026-08-28: `Dictdotclick.xcodeproj` builds clean with all of Phase 8's new and changed
 files; the pill shows live text while dictating; delivered text matches what the pill showed; the
