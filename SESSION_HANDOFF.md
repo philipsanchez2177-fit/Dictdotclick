@@ -58,13 +58,18 @@ Two items carried from Phase 8 as "believed safe by design" were closed out by c
 than a Mac test — reading the actual control flow line by line rather than trusting the comment
 describing it:
 
-- [x] **The short-dictation race.** Traced `startListening` → `stopListening` end to end. If stop
-      fires before `makeLiveSession` returns, `liveSession` is still `nil` at that point, so
-      `finishDictation` gets `nil` and falls back to one-shot transcription over the full buffer
-      `AudioCapture.stop()` already captured — no audio is lost. When the delayed setup task resumes,
-      its `Task.isCancelled` check catches the cancellation, closes the session it just opened, and
+- [x] **The short-dictation race — confirmed twice.** Code-audited (see below), then confirmed on
+      the Mac 2026-08-28: pressed the hotkey, said one word ("test"), pressed it again immediately.
+      Transcription succeeded — the word came through rather than being silently dropped, matching
+      what the trace below predicted.
+
+      Code trace: `startListening` → `stopListening` end to end. If stop fires before
+      `makeLiveSession` returns, `liveSession` is still `nil` at that point, so `finishDictation` gets
+      `nil` and falls back to one-shot transcription over the full buffer `AudioCapture.stop()`
+      already captured — no audio is lost. When the delayed setup task resumes, its
+      `Task.isCancelled` check catches the cancellation, closes the session it just opened, and
       returns without ever calling `beginLiveFeed`. `endLiveFeed()` is confirmed a safe no-op when the
-      handler was never registered. No test needed; the logic cannot lose a word in this window.
+      handler was never registered.
 - [x] **Old `settings.json` decoding.** Confirmed `AppSettings.Stored.init(from:)` decodes each field
       independently via `decodeIfPresent(...) ?? default`, so a file missing `enableLivePreview`
       (written before Phase 8) still decodes `removeFillerWords` from what's actually on disk — the
