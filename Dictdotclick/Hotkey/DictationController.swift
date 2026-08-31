@@ -231,6 +231,11 @@ final class DictationController {
                         self.lastDelivery = nil
                     } else {
                         self.deliver(text)
+                        // Phase 9 — only a dictation that actually produced
+                        // text is worth a history row or a source of
+                        // suggestions; an empty recording already took the
+                        // branch above and never reaches here.
+                        TranscriptHistoryStore.shared.add(heardText: heard, deliveredText: text)
                     }
                 }
             } catch {

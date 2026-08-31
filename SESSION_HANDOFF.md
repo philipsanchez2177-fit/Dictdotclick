@@ -1,58 +1,65 @@
-# SESSION HANDOFF — 2026-08-28-c
+# SESSION HANDOFF — 2026-08-31-a
 
 Read `BUILD-SPEC.md` first, always — it owns current architecture and state. `DEFERRED.md` owns
 outstanding work. This file is scoped to what happened this session and what to pick up next. Prior
-handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-28-b.md`.
+handoff archived at `docs/archive/SESSION_HANDOFF-2026-08-28-c.md`.
 
 ## Pick up here
 
-**Clean stopping point. Nothing pending, nothing outstanding.** Nine of ten phases done, and — for
-the first time in the project — the Mac-verification checklist is genuinely empty rather than
-carrying low-priority items forward. Next up is Phase 9: transcript history and background
-vocabulary suggestions with approve/dismiss. Nothing has been designed yet; it rests on Phase 7's
-dictionary storage, which is solid.
+**Phase 9 is written, not yet built on the Mac.** Five files: four new (transcript history storage,
+the suggestion engine, the suggestion approve/dismiss store, and the models file) plus a small edit to
+`DictationController` to append a history row after each delivered dictation, and a full rewrite of
+`HistorySettingsView` (previously a Phase 1 placeholder). Nothing else touched.
+
+Next step is Philip pulling and building on the Mac — see the checklist below. No code review or
+design questions are pending; this was a self-contained phase built end to end in one session.
 
 ## What happened this session
 
-Short session, asked explicitly to close loose ends before starting Phase 9 rather than carrying
-them forward again. Two items had sat on the Mac-verification list since Phase 8 shipped, both
-labelled "believed safe by design" rather than verified:
+Built Phase 9: transcript history, and background vocabulary suggestions with approve/dismiss.
 
-- The short-dictation race — pressing stop before the live transcription session finishes opening.
-- Whether an old `settings.json` (from before `enableLivePreview` existed) decodes without silently
-  resetting `removeFillerWords` to its default.
+- **History** (`TranscriptHistoryStore`) appends one row per finished dictation, from the same split
+  `DictationController` already computed for delivery — the raw heard text and the post-dictionary
+  delivered text. Capped at 500 entries, oldest dropped first. Settings pane lists newest-first, with
+  per-row delete and a confirmed "Clear All".
+- **Suggestions** (`VocabularySuggestionEngine` + `VocabularySuggestionStore`) scan history for
+  capitalized, mid-sentence words recurring across at least two separate dictations, excluding
+  anything already in the dictionary or already dismissed. Approve adds the word to
+  `DictionaryStore`; dismiss remembers a "no" so it doesn't re-ask. The heuristic and its reasoning
+  are written up in `BUILD-SPEC.md` under "Phase 9".
+- `HistorySettingsView` rebuilt with a suggestions card above a history card — suggestions on top
+  because they're the one thing on the pane asking for a click; buried under 500 history rows they'd
+  never be seen.
 
-Both were closed by **reading the actual code path end to end**, not by re-trusting the comments that
-described them as safe:
+Full design reasoning — why the heuristic is this conservative, why approval needed no state of its
+own but dismissal does — is in `BUILD-SPEC.md`, not repeated here.
 
-- **The race:** if `stopListening` fires before `makeLiveSession` returns, `liveSession` is still
-  `nil` at that point, so `finishDictation` falls back to one-shot transcription over the full buffer
-  `AudioCapture.stop()` already captured — no audio is lost. The delayed setup task's
-  `Task.isCancelled` check catches the cancellation on resume, closes the session it just opened, and
-  never calls `beginLiveFeed`. `endLiveFeed()` is a confirmed no-op when no handler was registered.
-- **The decode:** `AppSettings.Stored.init(from:)` decodes each field independently via
-  `decodeIfPresent(...) ?? default`, so a missing key only affects that one field rather than failing
-  the whole struct the way synthesized `Decodable` would.
+## Needs verifying on the Mac
 
-**Then Philip tested the race on the Mac anyway** — pressed the hotkey, said one word ("test"),
-pressed it again immediately. Transcription succeeded, matching exactly what the trace predicted. That
-is the good kind of confirmation: a specific prediction, then a real test that matched it, rather than
-a vague "seemed fine."
+None of this has been compiled. All five files below need a build before anything on this list can
+move to "verified."
 
-Both items are now genuinely verified — audited and, for the one that could be tested quickly,
-confirmed on the Mac. Nothing was left as "believed."
+| File | What to check | Success looks like |
+|---|---|---|
+| `Dictdotclick/History/TranscriptEntry.swift` | Compiles as part of the target. | No build errors attributable to this file. |
+| `Dictdotclick/History/TranscriptHistoryStore.swift` | Dictate something, then open Settings → History. | The dictation appears as a new row, newest first. |
+| `Dictdotclick/History/VocabularySuggestionEngine.swift` | Dictate the same capitalized name (not sentence-initial) in two separate dictations, e.g. "I talked to Marcus today." then later "Marcus called back." | "Marcus" appears in the Suggestions card after the second one, and not after the first. |
+| `Dictdotclick/History/VocabularySuggestionStore.swift` | Click the checkmark on a suggestion, then reopen Settings → Dictionary. Separately, dismiss a different suggestion, dictate the same word again, and confirm it does not reappear. | Approved word shows up in the Vocabulary list. Dismissed word stays gone across a fresh occurrence. |
+| `Dictdotclick/UI/Settings/HistorySettingsView.swift` | Open Settings → History with some entries present. Try per-row delete and "Clear All" (including cancelling the confirmation). | Layout matches the Dictionary pane's card style (Liquid Glass, locked-looking rows). Delete removes one row; Clear All empties the list only after confirming; cancel leaves it untouched. |
+| `Dictdotclick/Hotkey/DictationController.swift` (edit) | Covered by the `TranscriptHistoryStore` check above — a dictation that fails to recognise anything should **not** produce a history row. | Say nothing usable into the mic, stop; no new row appears. |
 
 ## Anything to know before continuing
 
-No gotchas from this session beyond what Phase 8's handoff already carries forward — that one is still
-current and worth a re-read before Phase 9, since it covers the reconciliation rule, the fallback
-design, and the decode-safety pattern that any new `Codable` settings field should follow.
+Nothing carried forward as a gotcha. The suggestion heuristic's *effectiveness* is deliberately
+unmeasured — same call Phase 7 made about vocabulary hints — and is tracked in `DEFERRED.md` rather
+than being a blocking question here.
 
 ## State
 
-- **Branch:** `claude/init-ayj2tg`, pushed and in sync with `origin`. `main` untouched. No open PRs.
-- **Working tree:** clean.
-- **`BUILD-SPEC.md` and `DEFERRED.md`:** not touched this session, and nothing this session changed
-  belongs in either — this was verification of existing Phase 8 work, not a design or architecture
-  change. Both remain current.
-- **No open questions.**
+- **Branch:** `claude/init-ayj2tg`. Working tree has the Phase 9 changes, not yet pushed as of writing
+  this file — pushed by the end of this session.
+- **`BUILD-SPEC.md`:** updated — Phase 9 row changed to "Written, not yet built on the Mac", and a new
+  "Phase 9" design section added.
+- **`DEFERRED.md`:** updated — one row added to "Open over time, not blocking" for the suggestion
+  heuristic's unmeasured effectiveness.
+- **No open questions for Philip.**

@@ -373,6 +373,43 @@ trigger wins, so "my work address" is not swallowed by "my address".
 mmm, mhm`. "like" and "so" are real words far more often than they are filler; an app that eats them
 quietly changes what was said.
 
+### Phase 9 — history is a byproduct of dictation, suggestions are a byproduct of history
+
+`TranscriptHistoryStore` appends one row per dictation from the same place `DictationController`
+already computes both texts for delivery — `heardText` (pre-dictionary) and `deliveredText`
+(post-dictionary), the same split Phase 8's live-preview debugging relied on. Only a dictation that
+produced text gets a row; an empty recording already takes the "nothing recognised" branch and never
+reaches the append.
+
+**The suggestion heuristic, and why it's this conservative.** `VocabularySuggestionEngine` proposes a
+word only if it is capitalized, is not the first word of its sentence, and recurs across **at least
+two separate dictations** — not two mentions in one ramble. Each rule kills a specific false positive:
+
+- Sentence-initial position is excluded because Whisper capitalizes every sentence start regardless of
+  whether the word is a proper noun — that position carries no signal.
+- Requiring recurrence *across entries*, counted as a `Set` per entry before tallying, stops a name
+  said five times in one dictation from looking like a pattern on its own.
+- All-caps acronyms and internally-capitalized words (`McDonald`) are skipped rather than guessed at.
+  The asymmetry is deliberate: a wrong suggestion costs one dismiss click, a missed one costs nothing
+  Philip would notice, so staying narrow is the cheaper mistake to make.
+
+This is the same reasoning Phase 7 used for filler-word cleanup — short and conservative over broad
+and clever — applied to a new problem.
+
+**Decision 4's "user-approved" is enforced by construction, not by convention.** The engine only ever
+*proposes* — `VocabularySuggestionStore` is the only place a word crosses into `DictionaryStore`, and
+only from `approve(_:)`, which a click in Settings calls. Nothing on the dictation path can add a
+word. Dismissals are remembered (a lowercased set, persisted) so a "no" doesn't re-ask every time the
+word recurs; approvals need no separate memory, because an approved word is already in
+`DictionaryStore.hints` and the engine's own `known` filter excludes it from future suggestions on
+that basis.
+
+**Unmeasured, like Phase 7's vocabulary-hint effectiveness before it.** Whether this heuristic actually
+surfaces words worth adding, versus mostly generating dismiss-clicks, is not something a contrived test
+in this container can answer — it needs real dictations accumulating on the Mac. Same call as Phase 7:
+better answered by weeks of use than by one on-demand check. If it turns out mostly noisy, the fallback
+is tightening `minimumOccurrences` or the capitalization rule, not rebuilding the approach.
+
 ---
 
 ## Planned tech stack
@@ -411,7 +448,7 @@ Each phase ends with a **runnable app**. Never a half-broken state.
 | 6 | Auto-type + clipboard delivery, with failure detection and a "Copied — press ⌘V" fallback toast. | **Done** — paste path verified 2026-08-22. Secure-input fallback reachable only mid-dictation; see below. |
 | 7 | Dictionary UI (vocabulary + snippets) and the light-cleanup post-processor with its toggle. | **Done** — closed 2026-08-26. Snippets and the locked-row editor verified in use. Vocabulary-hint *effectiveness* deliberately left to real-world use; see `DEFERRED.md`. |
 | 8 | Live text preview — rolling transcription over a growing window, reconciling the engine's revisions. Hardest part, built last. | **Done** — built and verified on the Mac 2026-08-28. Pill shows live text, toggle works, delivered text matches. |
-| 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Not started |
+| 9 | Transcript history + background vocabulary suggestions with approve/dismiss. | Written, not yet built on the Mac |
 
 ---
 
